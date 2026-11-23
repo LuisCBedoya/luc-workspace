@@ -848,11 +848,11 @@ desktop-doctor --camera
 
 - El código está implementado y los checks estáticos pasan.
 - Renombrado a `luc-workspace` (2026-11-21): repo, sistema, rutas,
-  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.6
+  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.7
   (2026-11-22: latest+fallback, Brave/opencode/ueberzugpp, política en
   `docs/reproducibility.md`, monocle sin bordes/sombra, brillo udev, barra
-  B abajo, Brave sin verticales, Alt+O/I y `pipewire` con padding 1). La
-  migración en vivo y la
+  B abajo, Brave sin verticales, Alt+O/I, `pipewire` con padding 1 y
+  `COLOR_DOT_ACCENT` para puntos/governor). La migración en vivo y la
   instalación desde cero en VM quedan pendientes.
 - Herdr (2026-11-17; actualizado 2026-11-22): `lib/herdr.sh` instala la
   última estable y cae a v0.9.5 con SHA-256; el config se renderiza desde

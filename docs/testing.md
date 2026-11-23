@@ -1957,3 +1957,15 @@ pendiente para quien quiera validar el ciclo completo.
   mostrar `format-padding = 1` y la barra reiniciarse con
   `~/.config/polybar/launch.sh`.
 - `verify.sh` no comprueba el valor, solo la existencia del módulo.
+
+### light: `COLOR_DOT_ACCENT` (2026-11-22, ADR-151)
+
+- En light, `~/.config/polybar/config.ini` y
+  `~/.config/polybar/variants/reference/config.ini` deben tener
+  `selected = #4f63d2`; `primary` sigue en `#7287fd`.
+- `~/.config/polybar/scripts/cpu-governor.sh` debe llevar
+  `ACCENT='#4f63d2'`.
+- En dark, ambos vuelven a `#89b4fa`.
+- El resto de módulos que usan `primary` (batería, resize, fs) no cambia.
+- Comprobar con `theme-mode light|dark` que los puntos y `governor`
+  cambian de tono y el resto de la barra se mantiene.

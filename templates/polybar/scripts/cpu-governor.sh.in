@@ -7,7 +7,7 @@ set -u
 CPUDIR=${LUC_WORKSPACE_CPU_SYS:-/sys/devices/system/cpu}
 HELPER=${LUC_WORKSPACE_CPU_HELPER:-/usr/local/bin/luc-workspace-cpu-governor}
 POWER_HELPER=${LUC_WORKSPACE_POWER_HELPER:-/usr/local/bin/luc-workspace-power-profile}
-ACCENT='@COLOR_BAR_ACCENT@'
+ACCENT='@COLOR_DOT_ACCENT@'
 NOTIFY=${LUC_WORKSPACE_NOTIFY:-notify-send}
 
 # Iconos de la fuente (JetBrainsMono Nerd Font), verificados por charmap.

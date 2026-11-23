@@ -4069,3 +4069,32 @@ queda más cerca de `date`/`recording` sin tocar los demás espaciados
 - Una instalación nueva reproduce el padding 1 en A y B.
 - `AGENTS.md` y `docs/testing.md` actualizados; el historial de
   `PROGRESS.md` conserva la entrada antigua del padding 2.
+
+## ADR-151 — Acento propio para puntos y `governor` en light
+
+**Contexto:** en modo light los puntos de escritorio y el texto de
+`governor` usaban `COLOR_BAR_ACCENT` (`#7287fd`). Sobre `#eff1f5` ese
+lavanda tiene 2,81:1 de contraste y se veía demasiado suave. El usuario
+quería más cuerpo solo en esos dos elementos, sin cambiar el resto del
+acento de la barra.
+
+**Decisión:**
+1. Nueva variable `COLOR_DOT_ACCENT`: latte `#4f63d2` (4,59:1 sobre el
+   fondo), mocha `#89b4fa` (idéntico al acento actual, el dark no cambia).
+2. `selected` de `templates/polybar/config.ini.in` y de la variante B
+   pasa a `@COLOR_DOT_ACCENT@`. `selected` solo lo usan los puntos
+   (fondo del enfocado en A, punto enfocado en B), así que el resto de
+   módulos conserva `primary` = `COLOR_BAR_ACCENT`.
+3. `templates/polybar/scripts/cpu-governor.sh.in` usa
+   `@COLOR_DOT_ACCENT@` en `ACCENT`.
+4. La variable se registra en `templates/colors/base.sh`,
+   `lib/theme.sh` y `lib/verify.sh`.
+5. `theme-mode` re-renderiza configs y `cpu-governor.sh`, así que el
+   cambio se aplica sin sudo; `install.sh` sigue siendo la vía
+   reproducible en una instalación nueva.
+
+**Consecuencias:**
+- Puntos y `governor` tienen más contraste en light; batería, resize,
+  fs y `fan` siguen en lavanda.
+- Dark queda visualmente igual.
+- `verify.sh` acepta el nuevo hex porque entra en la lista de la paleta.

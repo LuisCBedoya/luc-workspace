@@ -4,7 +4,7 @@ Escritorio mínimo y reproducible sobre Debian 13: Xorg, bspwm, sxhkd,
 polybar, picom, dunst, rofi, kitty, PipeWire, Brave, ranger, zathura,
 VLC, Herdr y ytwatch.
 
-Versión 1.0.6 · `startx` manual, sin display manager.
+Versión 1.0.7 · `startx` manual, sin display manager.
 
 ## Capturas
 

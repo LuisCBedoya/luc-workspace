@@ -341,7 +341,10 @@ Incluido:
   `desktop-doctor` avisa si la salud de la batería baja del 60 %.
 - La barra usa `COLOR_BAR_ACCENT` (mocha `#89b4fa`, latte lavanda
   `#7287fd`): el acento de la barra puede ser más suave que el acento
-  general del modo. El borde de la ventana enfocada usa
+  general del modo. Los puntos de escritorio y el módulo `governor` usan
+  `COLOR_DOT_ACCENT` (mocha `#89b4fa`, latte azul profundo `#4f63d2`),
+  más legible sobre fondo claro sin arrastrar al resto de la barra. El
+  borde de la ventana enfocada usa
   `COLOR_FOCUS_BORDER` (mocha `#89b4fa`, latte lavanda suave `#8b9cf7`). Fondos
   personales: `~/.local/share/wallpapers/local-dark.png` y
   `local-light.png` (el instalador no los toca).

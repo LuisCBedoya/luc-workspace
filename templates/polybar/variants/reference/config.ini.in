@@ -12,7 +12,7 @@ primary = @COLOR_BAR_ACCENT@
 secondary = @COLOR_ACCENT_ALT@
 alert = @COLOR_RED@
 disabled = @COLOR_FG_DIM@
-selected = @COLOR_BAR_ACCENT@
+selected = @COLOR_DOT_ACCENT@
 empty = @COLOR_FG_DIM@
 
 [bar/main]

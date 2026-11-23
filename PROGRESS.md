@@ -2879,3 +2879,13 @@ UHD 630; sin servicios ni configuración extra.
 - Aplicado en vivo editando los dos módulos y reiniciando con
   `~/.config/polybar/launch.sh`; `sudo ./install.sh` re-renderiza lo
   mismo desde las plantillas.
+
+### light: acento más profundo en puntos y governor — 2026-11-22
+
+- En light, puntos y `performance` usaban `COLOR_BAR_ACCENT` (`#7287fd`,
+  2,81:1 sobre `#eff1f5`) y se veían demasiado suaves.
+- Nueva `COLOR_DOT_ACCENT`: latte `#4f63d2` (4,59:1), mocha `#89b4fa`.
+- `selected` de A y B y `ACCENT` de `cpu-governor.sh` usan la variable
+  nueva; `primary` y el resto de la barra siguen en `COLOR_BAR_ACCENT`.
+- Registrada en `base.sh`, `theme-mode` y `verify.sh`; ADR-151 y
+  `docs/install.md` actualizados. Aplicado en vivo con `theme-mode`.

@@ -19,6 +19,7 @@
 #   COLOR_ACCENT_ALT - Acento secundario
 #   COLOR_ACCENT_STRONG - Azul intenso (hints, avisos)
 #   COLOR_BAR_ACCENT - Acento de la barra (puede diferir del general)
+#   COLOR_DOT_ACCENT - Puntos de escritorio y governor (más profundo en light)
 #   COLOR_FOCUS_BORDER - Borde de la ventana enfocada
 #   COLOR_GREEN      - OK / bajo
 #   COLOR_YELLOW     - Warning / medio
@@ -58,7 +59,7 @@ validate_palette() {
   local var val
   for var in COLOR_BG COLOR_BG_ALT COLOR_BG_ELEV COLOR_BG_HOVER \
              COLOR_FG COLOR_FG_MUTED COLOR_FG_DIM \
-             COLOR_BORDER COLOR_ACCENT COLOR_ACCENT_ALT COLOR_ACCENT_STRONG COLOR_BAR_ACCENT COLOR_FOCUS_BORDER \
+             COLOR_BORDER COLOR_ACCENT COLOR_ACCENT_ALT COLOR_ACCENT_STRONG COLOR_BAR_ACCENT COLOR_DOT_ACCENT COLOR_FOCUS_BORDER \
              COLOR_GREEN COLOR_YELLOW COLOR_ORANGE COLOR_RED COLOR_CYAN; do
     val="${!var}"
     if [[ -z "$val" ]]; then
