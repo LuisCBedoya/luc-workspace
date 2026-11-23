@@ -4,7 +4,7 @@ Escritorio mínimo y reproducible sobre Debian 13: Xorg, bspwm, sxhkd,
 polybar, picom, dunst, rofi, kitty, PipeWire, Brave, ranger, zathura,
 VLC, Herdr y ytwatch.
 
-Versión 1.0.0 · `startx` manual, sin display manager.
+Versión 1.0.1 · `startx` manual, sin display manager.
 
 ## Capturas
 
@@ -27,10 +27,15 @@ sudo apt update && sudo apt install -y git
 git clone https://github.com/luiscbedoya/luc-workspace
 cd luc-workspace
 ./install.sh --dry-run
-./install.sh
+sudo ./install.sh
 sudo reboot
 startx
 ```
+
+`sudo ./install.sh` y `./install.sh` son equivalentes: el instalador
+detecta el usuario real y no guarda contraseñas. Si ya tienes una versión
+de `ueberzugpp` más nueva, la instalación no la degrada; actualízala con
+`ytwatch-update --ueberzugpp`.
 
 ## Opciones
 
@@ -63,10 +68,19 @@ startx
 
 `desktop-doctor` · log: `~/.local/state/luc-workspace/session.log`
 
+## Reproducibilidad
+
+La configuración y los temas quedan fijados en el repo. Las herramientas
+externas se instalan en su **última estable** al ejecutar `install.sh`, con
+fallback vendorizado/fijado si el release falla. No se garantizan versiones
+idénticas, sino el mismo escritorio y comportamiento. Detalle:
+[`docs/reproducibility.md`](docs/reproducibility.md).
+
 ## Documentación
 
 - [`docs/install.md`](docs/install.md) — instalación, migración, backups, sesión, hardware y limitaciones.
 - [`docs/usage.md`](docs/usage.md) — atajos, apps, tema y uso diario.
 - [`docs/hardware.md`](docs/hardware.md) — hardware y detección.
 - [`docs/testing.md`](docs/testing.md) — pruebas.
+- [`docs/reproducibility.md`](docs/reproducibility.md) — política de versiones y fallbacks.
 - [`AGENTS.md`](AGENTS.md) · [`PROGRESS.md`](PROGRESS.md) · [`DECISIONS.md`](DECISIONS.md)

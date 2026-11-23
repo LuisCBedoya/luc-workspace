@@ -8,9 +8,12 @@
 
 INSTALL_HERDR="${INSTALL_HERDR:-yes}"
 
-HERDR_VERSION="v0.9.5"
-HERDR_SHA256_X86_64="14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d"
-HERDR_SHA256_AARCH64="17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c"
+# Política: última estable de GitHub; si falla, fallback fijo verificado.
+HERDR_REPO="herdrdev/herdr"
+HERDR_FALLBACK_VERSION="v0.9.5"
+HERDR_FALLBACK_SHA256_X86_64="14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d"
+HERDR_FALLBACK_SHA256_AARCH64="17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c"
+HERDR_VERSION="$HERDR_FALLBACK_VERSION"
 
 herdr_asset() {
   case "$(uname -m)" in
@@ -20,17 +23,18 @@ herdr_asset() {
   esac
 }
 
-herdr_sha256() {
+herdr_fallback_sha256() {
   case "$(uname -m)" in
-    x86_64|amd64) printf '%s' "$HERDR_SHA256_X86_64" ;;
-    aarch64|arm64) printf '%s' "$HERDR_SHA256_AARCH64" ;;
+    x86_64|amd64) printf '%s' "$HERDR_FALLBACK_SHA256_X86_64" ;;
+    aarch64|arm64) printf '%s' "$HERDR_FALLBACK_SHA256_AARCH64" ;;
     *) return 1 ;;
   esac
 }
 
 herdr_download_url() {
-  printf 'https://github.com/herdrdev/herdr/releases/download/%s/%s' \
-    "$HERDR_VERSION" "$(herdr_asset)"
+  local version="${1:-$HERDR_VERSION}"
+  printf 'https://github.com/%s/releases/download/%s/%s' \
+    "$HERDR_REPO" "$version" "$(herdr_asset)"
 }
 
 install_herdr() {
@@ -41,7 +45,8 @@ install_herdr() {
 
   if dry_run; then
     section "Configurando Herdr (TUI de terminal)"
-    log "[dry-run] descargar $(herdr_download_url) (SHA-256 verificado)"
+    log "[dry-run] resolver última estable de $HERDR_REPO; fallback $HERDR_FALLBACK_VERSION (SHA-256)"
+    log "[dry-run] descargar $(herdr_download_url) si es la última"
     log "[dry-run] instalar ~/.local/bin/herdr 0755 (usuario, sin sudo)"
     log "[dry-run] renderizar ~/.config/herdr/config.toml desde templates/herdr"
     log "[dry-run] instalar ~/.local/lib/luc-workspace/preview_tag.py (etiqueta de previews)"
@@ -62,63 +67,50 @@ herdr_installed_version() {
   "$bin" --version 2>/dev/null | head -1 | awk '{print $NF}'
 }
 
-# Instala el binario de la release con el SHA-256 fijado. Sin red queda el
-# binario anterior; nunca se retrocede a una versión más vieja.
-install_herdr_binary() {
+# Descarga e instala una release concreta. La fallback lleva SHA-256
+# fijado; la última estable se registra con su SHA (Herdr no publica
+# checksums.txt en sus releases).
+install_herdr_candidate() {
+  local version="$1"
   local home="$TARGET_HOME"
   local dir="$home/.local/bin"
   local bin="$dir/herdr"
-  local want="${HERDR_VERSION#v}"
-  local installed sha tmp got
+  local tmp got expected installed
 
-  make_user_dir "$dir"
-
-  installed=$(herdr_installed_version)
-  if [[ "$installed" == "$want" ]]; then
-    info "Herdr ya instalado: $installed (no se descarga de nuevo)"
-    return 0
-  fi
-  if [[ -n "$installed" ]]; then
-    if [[ "$(printf '%s\n%s\n' "$installed" "$want" | sort -V | tail -1)" == "$installed" ]]; then
-      info "Herdr instalado ($installed) es más nuevo que el fijado ($want); no se toca"
-      return 0
-    fi
-    info "Herdr instalado: $installed; el repo fija $want"
-  fi
-
-  if ! cmd_exists curl; then
-    warn "curl no está instalado; Herdr no se puede descargar"
-    return 0
-  fi
   if ! herdr_asset >/dev/null; then
     warn "Arquitectura no soportada para Herdr ($(uname -m))"
-    return 0
+    return 1
   fi
-  sha=$(herdr_sha256)
 
   tmp=$(run_user mktemp -d "${TMPDIR:-/tmp}/herdr.XXXXXX") || {
     warn "No se pudo crear el directorio temporal de Herdr"
-    return 0
+    return 1
   }
 
-  if ! run_user curl -fsSL --max-time 180 -o "$tmp/herdr" "$(herdr_download_url)"; then
+  if ! run_user curl -fsSL --max-time 300 -o "$tmp/herdr" \
+       "$(herdr_download_url "$version")"; then
     rm -rf -- "$tmp"
-    warn "Fallo descargando Herdr $HERDR_VERSION; queda ${installed:-ninguno}"
-    return 0
+    warn "Fallo descargando Herdr $version"
+    return 1
   fi
 
-  got=$(sha256sum "$tmp/herdr" 2>/dev/null | awk '{print $1}')
-  if [[ "$got" != "$sha" ]]; then
-    rm -rf -- "$tmp"
-    warn "Checksum de Herdr no coincide (esperado $sha, obtenido ${got:-ninguno}); se descarta"
-    return 0
+  got=$(sha256_file "$tmp/herdr")
+  if [[ "$version" == "$HERDR_FALLBACK_VERSION" ]]; then
+    expected=$(herdr_fallback_sha256)
+    if [[ "$got" != "$expected" ]]; then
+      rm -rf -- "$tmp"
+      warn "Checksum de Herdr $version no coincide (esperado $expected, obtenido ${got:-ninguno}); se descarta"
+      return 1
+    fi
+  else
+    info "Herdr $version: SHA-256 $got (release sin checksums.txt; se registra)"
   fi
 
   run_user chmod 0755 "$tmp/herdr" 2>/dev/null || true
-  if ! "$tmp/herdr" --version >/dev/null 2>&1; then
+  if ! run_user "$tmp/herdr" --version >/dev/null 2>&1; then
     rm -rf -- "$tmp"
-    warn "El binario de Herdr no arranca; no se instaló nada"
-    return 0
+    warn "El binario de Herdr $version no arranca; no se instala"
+    return 1
   fi
 
   if [[ -f "$bin" ]]; then
@@ -126,9 +118,51 @@ install_herdr_binary() {
   fi
   run_user install -m 0755 -- "$tmp/herdr" "$bin"
   rm -rf -- "$tmp"
-
-  installed=$(herdr_installed_version)
+  HERDR_VERSION="$version"
+  installed=$(herdr_installed_version 2>/dev/null || true)
   ok "Herdr: ${installed:-desconocida} ($bin)"
+  return 0
+}
+
+# Resuelve la última estable y cae al fallback fijo si falla. Nunca
+# retrocede si la versión instalada ya es igual o más nueva.
+install_herdr_binary() {
+  local home="$TARGET_HOME"
+  local dir="$home/.local/bin"
+  local installed latest want fallback
+
+  make_user_dir "$dir"
+  installed=$(herdr_installed_version 2>/dev/null || true)
+
+  if ! cmd_exists curl; then
+    warn "curl no está instalado; Herdr no se puede descargar"
+    return 0
+  fi
+
+  latest=$(latest_github_tag "$HERDR_REPO" 2>/dev/null || true)
+  fallback="$HERDR_FALLBACK_VERSION"
+  want="${latest:-$fallback}"
+
+  if [[ -n "$installed" ]] && version_ge "$installed" "${want#v}"; then
+    if [[ "$installed" == "${want#v}" ]]; then
+      info "Herdr ya instalado: $installed (última estable: $want)"
+    else
+      info "Herdr instalado ($installed) es más nuevo que la última ($want); no se toca"
+    fi
+    return 0
+  fi
+
+  info "Herdr: última estable ${want}; instalada ${installed:-ninguna}"
+  if [[ -n "$latest" ]] && install_herdr_candidate "$latest"; then
+    return 0
+  fi
+  if [[ "$fallback" != "$latest" ]]; then
+    warn "Herdr $want no se pudo instalar; se usa el fallback $fallback"
+    if install_herdr_candidate "$fallback"; then
+      return 0
+    fi
+  fi
+  warn "Herdr no se pudo instalar; queda ${installed:-ninguno}"
 }
 
 # Config de Herdr con los atajos actuales y el tema de la paleta activa.

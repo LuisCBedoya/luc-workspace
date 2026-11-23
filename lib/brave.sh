@@ -35,7 +35,7 @@ install_brave() {
   install_brave_vaapi
   install_surfingkeys_config
   remove_firefox
-  ok "Brave configurado (atajos, policies, temas Catppuccin y SurfingKeys pendiente de pegar)"
+  ok "Brave configurado (atajos, policies, «Usar GTK» y SurfingKeys pendiente de pegar)"
 }
 
 # Repo APT oficial de Brave (autorizado explícitamente por el usuario, regla 8).
@@ -85,9 +85,10 @@ install_brave_newtab() {
   ok "Brave: página de nueva pestaña en $user_target ($link)"
 }
 
-# Policies: telemetría/ads fuera y SurfingKeys forzada. Los dos temas
-# Catppuccin quedan normal_installed como opcionales: el escritorio usa
-# «Usar GTK» y no depende de los packs de la CWS (ADR-115).
+# Policies: telemetría/ads fuera y SurfingKeys forzada. Los temas
+# Catppuccin de la CWS NO se instalan por policy: al instalarse, Brave
+# los aplica automáticamente y pisan «Usar GTK», rompiendo el cambio de
+# tema en caliente vía xsettingsd (ADR-144). El escritorio usa solo GTK.
 install_brave_policies() {
   local policy=/etc/brave/policies/managed/luc-workspace.json
   local tmp
@@ -115,14 +116,6 @@ install_brave_policies() {
     "gfbliohnnapiefjpjlpjnehglfpaknnc": {
       "installation_mode": "force_installed",
       "update_url": "https://clients2.google.com/service/update2/crx"
-    },
-    "bkkmolkhemgaeaeggcmfbghljjjoofoh": {
-      "installation_mode": "normal_installed",
-      "update_url": "https://clients2.google.com/service/update2/crx"
-    },
-    "jhjnalhegpceacdhbplhnakmkdliaddd": {
-      "installation_mode": "normal_installed",
-      "update_url": "https://clients2.google.com/service/update2/crx"
     }
   }
 }
@@ -131,7 +124,7 @@ EOF
   backup_root "$policy"
   run_root install -D -m 0644 "$tmp" "$policy"
   rm -f -- "$tmp"
-  ok "Brave: telemetría desactivada, SurfingKeys forzada y temas Mocha/Latte opcionales"
+  ok "Brave: telemetría desactivada, SurfingKeys forzada y temas CWS fuera (solo GTK)"
 }
 
 # Helper de usuario que asegura «Usar GTK» en el perfil de Brave.

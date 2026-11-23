@@ -54,9 +54,9 @@
     "background": {
       "base": "#0d0d14",
       "raised": {
-        "base": "#0d0d14",
-        "high": "#1a1a24",
-        "max": "#26262f"
+        "base": "#08080d",
+        "high": "#050509",
+        "max": "#050509"
       },
       "action": {
         "primary": {
@@ -91,7 +91,7 @@
       }
     },
     "border": {
-      "base": "#26262f"
+      "base": "#1a1a24"
     },
     "scrollbar": {
       "base": "#35353f"
@@ -146,6 +146,16 @@
       "image": "#89b4fa",
       "imageText": "#94e2d5",
       "codeBlock": "#a6e3a1"
+    },
+    "@dialog": {
+      "background": {
+        "base": "$background.raised.base",
+        "action": {
+          "primary": {
+            "$hovered": "$background.raised.high"
+          }
+        }
+      }
     }
   },
   "dark": {

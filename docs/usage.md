@@ -25,7 +25,8 @@ Atajos, variantes de la barra, apps y tema. El
 | `Super+Alt+P` | ciclo A arriba → A abajo → B arriba → B abajo |
 | `Super+Alt+W` | alterna wallpaper dark / light |
 | `Super+Alt+T` | alterna tema oscuro / claro |
-| `Ctrl+Space` | alternar flotante/tiled |
+| `Ctrl+Space` | alternar flotante/tiled (lo captura sxhkd) |
+| `Ctrl+Period` | cerrar la notificación de dunst actual |
 | `Super+Shift+space` | alternar floating |
 | `Super+Shift+q` | cerrar ventana |
 | `Super+a` | enfocar contenedor padre |
@@ -169,8 +170,9 @@ ytdlp-rollback   # vuelve a la anterior
 
 ## Herdr — terminal con pestañas
 
-Herdr se instala en `~/.local/bin/herdr` (v0.9.5, SHA-256 fijado en
-`lib/herdr.sh`). Se abre escribiendo:
+Herdr se instala en `~/.local/bin/herdr` con la última estable de su
+release; si falla, usa la fallback v0.9.5 con SHA-256 fijado en
+`lib/herdr.sh`. Se abre escribiendo:
 
 ```sh
 herdr
@@ -206,8 +208,8 @@ sin imagen (`--force-window=immediate` de ytwatch), que es su
 comportamiento, no un fallo. `d`/`a`/`Q` descargan (calidad/audio), `V`
 arma cola, `f` filtra,
 `?` muestra la ayuda completa. Las miniaturas van con el backend `x11`
-de `ueberzugpp` (ventana-hija sobre la terminal; en Debian 13 llega por
-`.deb` del proyecto, sin añadir repositorios). Dentro de Herdr funciona
+de `ueberzugpp` (ventana-hija sobre la terminal; el instalador usa el
+`.deb` vendorizado en `vendor/`, sin añadir repositorios). Dentro de Herdr funciona
 con la función `ytwatch` de zsh, que exporta `WINDOWID` como pista; el
 wrapper `~/.local/bin/ueberzugpp` la corrige a la kitty real de Herdr,
 suma el offset del sidebar y la barra de pestañas para que la miniatura
@@ -222,7 +224,10 @@ ytwatch-update       # actualiza el TUI (checksums.txt + .bak)
 ytwatch-update --ueberzugpp   # refresca el paquete de miniaturas (sudo)
 ```
 
-En una instalación sin el bloque: `./install.sh --no-ytwatch`.
+En una instalación sin el bloque: `./install.sh --no-ytwatch` (ranger
+conserva las miniaturas: `ueberzugpp` se instala aparte). El instalador no
+degrada `ueberzugpp` si ya tienes una versión igual o más nueva; para
+actualizarlo en una máquina existente usa `ytwatch-update --ueberzugpp`.
 No actualiza nada por su cuenta: siempre decides tú con `ytdlp-update`.
 
 ## Tema y modo de color
@@ -242,7 +247,8 @@ theme-mode dark        # Mocha Black
 theme-mode light       # Latte
 theme-mode toggle
 theme-mode status
-brave-theme status     # comprueba que Brave usa «Usar GTK»
+brave-theme status     # muestra el estado de «Usar GTK»
+brave-theme check      # 0 = GTK correcto; 1 = tema CWS/restos
 ```
 
 `theme-mode` re-renderiza polybar A/B, kitty, dunst, rofi, zathura, bspwm,
@@ -259,11 +265,16 @@ active `#1a1a24`, selection `#26262f`; light `#eff1f5`, `#e6e9ef`,
 cuenta: en dark usa el tema `mocha-black` (Catppuccin con las
 superficies de la paleta, fondo `#0d0d14`) y en light
 `catppuccin`/`light` en `~/.config/opencode/cli.json`, con
-`opencode reload`. El tema vive en
-`templates/opencode/mocha-black.json` (formato V2: `background.raised`
-`#0d0d14`/`#1a1a24`/`#26262f`) y se instala en
-`~/.config/opencode/themes/`; si el archivo es nuevo, hay que reiniciar
-opencode una vez para que lo descubra. El logo
+`opencode reload`. `sudo ./install.sh` deja `~/.config/opencode/cli.json`
+con `theme.name`/`mode` del modo activo (conservando el resto de claves), y
+`theme-mode` lo crea si falta. El tema vive en
+`templates/opencode/mocha-black.json` (formato V2: `background.base`
+`#0d0d14`, `background.raised` `#08080d`/`#050509`/`#050509` —
+mantle/crust como el built-in—, `border.base` `#1a1a24` y
+`@dialog` apuntando a `raised.base`). No usar surface0/surface1 en
+`raised`: el input y los paneles se ven más claros que en light. Se
+instala en `~/.config/opencode/themes/`; si el archivo es nuevo o se
+modifica su definición, hay que reiniciar opencode una vez. El logo
 `assets/fastfetch/Neofet-dark.png` lleva un disco `#0d0d14` para que
 fastfetch se funda con el dark; el de light no se toca.
 
@@ -310,12 +321,16 @@ escucha ese cambio de GTK y repinta en caliente, sin reiniciar.
 `brave-theme` (sin sudo) asegura en `Preferences` el estado «Usar GTK»:
 `extensions.theme.id=""`, `extensions.theme.system_theme=1` y
 `browser.theme.color_scheme2=0` (sistema), sin `pack`, `user_color2` ni
-`color_variant2`. El wrapper `~/.local/bin/brave-browser` lo reaplica en
-cada arranque por si Brave reescribe las prefs. Con Brave abierto no se
-tocan las prefs; solo hace falta reiniciarlo si el estado GTK estaba
-pendiente. Los temas Mocha/Latte de la CWS siguen instalados
-(`normal_installed`) como opcionales, pero el escritorio no depende de
-ellos. Los atajos
+`color_variant2`, y desactiva los temas Catppuccin de la CWS si quedaron
+instalados. El wrapper `~/.local/bin/brave-browser` lo reaplica en cada
+arranque por si Brave reescribe las prefs. Con Brave abierto no se tocan
+las prefs; solo hace falta reiniciarlo si el estado GTK estaba pendiente.
+
+Los temas Catppuccin de la CWS **ya no se instalan por policy**: al
+instalarse, Brave los aplica y pisan «Usar GTK», así que `Super+Alt+T`
+dejaría de cambiar Brave. Si quieres usar uno manualmente, ten en cuenta
+que dejará de seguir el tema del escritorio. Comprueba el estado con
+`brave-theme check` (`0` = GTK, `1` = tema CWS o restos). Los atajos
 nativos (`Ctrl+N/P`, `Alt+Q/O/K`, `Alt+H/L` para los paneles y `Alt+N` /
 `Alt+Shift+N`) se escriben en `brave.accelerators` del perfil (con Brave cerrado).
 Chromium **no soporta `userChrome`/CSS de UI**:

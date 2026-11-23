@@ -330,10 +330,12 @@ Probado en vivo en ASUS FX504GE, Debian 13, 1920x1080:
   wallpaper grafito con halo tenue.
 - `desktop-doctor` reconoce `rofi/config.rasi` y `zathura/zathurarc`.
 
-### Tema GTK e iconos (2026-10-25)
+### Tema GTK e iconos (2026-10-25; actualizado a Catppuccin)
 
-- `Windows-10-Dark` se instala en `~/.themes`.
-- GTK2/3/4 usan Windows-10-Dark y Papirus.
+- Los temas `catppuccin-mocha-black`, `catppuccin-mocha-blue` y
+  `catppuccin-latte-blue` se instalan en `/usr/share/themes`; los iconos
+  `Catppuccin-Mocha`/`Catppuccin-Latte` heredan de `Papirus-Dark`/`Papirus-Light`.
+- GTK2/3/4 y `xsettingsd` usan el tema Catppuccin del modo activo.
 - `gsettings` aplica el tema y los iconos al iniciar sesión.
 - `papirus-icon-theme` y `librsvg2-common` vienen de APT.
 - Si falta `librsvg2-common`, GTK no renderiza los SVG de Papirus.
@@ -1683,3 +1685,198 @@ enfocar «Musica». Ranger en una pestaña temporal, con zathura activa,
 quedó hijo de la kitty correcta y etiquetado con su pestaña. También se
 corrigió que `WINDOWID` podía apuntar a mpv: el wrapper localiza la
 kitty con `kitty @ ls`. Queda pendiente la instalación desde cero en VM.
+
+### Instalación reproducible y previews (2026-11-22, ADR-143)
+
+Objetivo: que `sudo ./install.sh` termine con código 0 desde un Debian 13
+minimal, incluso si OBS retira la versión de `ueberzugpp`, y que un fallo
+opcional no oculte el resumen.
+
+**Estático (en repo):**
+
+```sh
+bash -n install.sh lib/*.sh
+sh -n bin/desktop-doctor
+bash -n bin/ytwatch-update bin/ytwatch-check
+./install.sh --dry-run
+```
+
+- `--dry-run` debe devolver 0, no descargar y mostrar
+  `vendor/ueberzugpp_2.9.11_amd64.deb` en el bloque de miniaturas.
+- `sha256sum vendor/ueberzugpp_2.9.11_amd64.deb` debe ser
+  `7f351202756f5027ddf752da9d90bc67f0be41d8338f5b851b828d4386a5e815`.
+
+**Instalación real:**
+
+```sh
+sudo ./install.sh
+```
+
+- Código de salida 0 y resumen final visible.
+- En el log no debe aparecer `curl: (22)`, `[error]` por `ueberzugpp` ni
+  `dpkg: problemas de dependencias`. La instalación usa APT para
+  resolver las dependencias del `.deb` local; `dpkg -i` solo es fallback.
+- `dpkg-query -W -f='${Version}\n' ueberzugpp` → última estable o, si
+  falló, fallback `2.9.11`; el estado debe ser `install ok installed`
+  (`dpkg -l` → `ii`). `dpkg --audit` debe quedar vacío.
+- `/usr/bin/ueberzugpp` y `/usr/bin/ueberzug` existen.
+- `command -v ueberzugpp` resuelve a `~/.local/bin/ueberzugpp` (wrapper) y
+  `command -v ueberzug` a `~/.local/bin/ueberzug`.
+- `desktop-doctor` no muestra `[FALTA]` para el tema ni para las
+  miniaturas.
+
+**Idempotencia y actualización:**
+
+```sh
+sudo ./install.sh            # segunda vez: 0, sin degradar nada
+ytwatch-update --ueberzugpp  # actualiza a la última de OBS
+sudo ./install.sh            # sigue 0 y conserva la versión actualizada
+```
+
+- `install_previews` no debe bajar una versión instalada igual o más
+  nueva que `2.9.11`.
+- Si `ueberzugpp` no se puede instalar, el instalador debe terminar con 0,
+  avisar en el resumen y dejar el escritorio completo; ranger/ytwatch
+  pierden solo las miniaturas.
+
+**Sesión:**
+
+```sh
+startx
+# abrir una notificación y pulsar Ctrl+Period
+# comprobar Ctrl+Space sobre una ventana
+grep -n "Unable to grab key" ~/.local/state/luc-workspace/session.log
+```
+
+- `Ctrl+Space` alterna flotante/tiled.
+- `Ctrl+Period` cierra la notificación de dunst actual.
+- `session.log` no debe contener `Unable to grab key 'ctrl+space'`.
+- `~/.config/dunst/dunstrc` no debe volver a tener
+  `close = ctrl+space`; `verify.sh` y `desktop-doctor` lo detectan.
+
+**Resultado (2026-11-22):** primera instalación real completada en esta
+máquina; `ueberzugpp 2.9.11` quedó `ii` y `dpkg --audit` vacío. El log
+mostró un error transitorio de `dpkg -i` por dependencias que
+`apt-get -f` reparó; por eso el instalador pasó a usar
+`apt-get install` del `.deb` local y `dpkg -i` solo como fallback.
+Estático y pruebas unitarias del flujo APT/fallback pasan (`bash -n`,
+`sh -n`, `--dry-run` rc 0). Pendiente probar en una VM Debian 13 limpia
+sin las dependencias, la actualización con `ytwatch-update --ueberzugpp`
+y la comprobación de la sesión.
+
+### Brave: «Usar GTK» y cambio de tema en caliente (2026-11-22, ADR-144)
+
+Objetivo: que `Super+Alt+T` cambie Brave entre Mocha Black y Latte sin
+reiniciar, usando el tema GTK publicado por `xsettingsd`.
+
+- La policy `/etc/brave/policies/managed/luc-workspace.json` **no** debe
+  contener:
+  - `bkkmolkhemgaeaeggcmfbghljjjoofoh` (Mocha CWS)
+  - `jhjnalhegpceacdhbplhnakmkdliaddd` (Latte CWS)
+- `brave-theme status` debe mostrar:
+  ```text
+  tema:     (Usar GTK)
+  sistema:  1
+  esquema:  0 (sistema)
+  Mocha:     state=0
+  Latte:     state=0
+  ```
+- `brave-theme check` debe devolver 0. Si devuelve 1, revisar el perfil:
+  tema CWS seleccionado, `system_theme != 1`, `pack` o temas sin
+  desactivar.
+- Con Brave abierto, pulsar `Super+Alt+T`: la barra de Brave debe pasar
+  de oscura a clara y viceversa sin reiniciar. El resto del escritorio
+  (polybar, dunst, kitty, wallpaper, GTK) cambia a la vez.
+- Si Brave estaba abierto durante `sudo ./install.sh`, cerrarlo una vez
+  y ejecutar `brave-theme apply --mode dark` (o `light`) antes de
+  reabrirlo. El wrapper `~/.local/bin/brave-browser` también lo aplica
+  al arrancar.
+- `desktop-doctor` debe mostrar `[OK] Brave usa el tema GTK`.
+- Los atajos nativos (`brave.accelerators`) no se tocan; siguen
+  funcionando con el cambio de tema.
+
+**Resultado (2026-11-22):** `brave-theme check` detecta correctamente el
+perfil con Latte como sucio; en un perfil temporal, `apply` limpia el
+tema CWS, desactiva Mocha/Latte y `check` devuelve 0. Pendiente la
+prueba en vivo tras `sudo ./install.sh` y el cierre/reinicio de Brave.
+
+### opencode: tema dark uniforme (2026-11-22, ADR-145)
+
+Objetivo: que el tema custom `mocha-black` use las mismas superficies
+relativas que el built-in Catppuccin de light, sin que el input/paneles
+salten a surface0/surface1.
+
+```sh
+python3 -m json.tool ~/.config/opencode/themes/mocha-black.json
+grep -A4 '"raised"' ~/.config/opencode/themes/mocha-black.json
+```
+
+- `background.base` → `#0d0d14`
+- `background.raised.base` → `#08080d`
+- `background.raised.high`/`max` → `#050509`
+- `border.base` → `#1a1a24`
+- `@dialog.background.base` → `$background.raised.base`
+
+En la sesión:
+
+```sh
+theme-mode dark
+# cerrar y abrir opencode
+```
+
+- En dark, el fondo, el input y los bloques deben quedar en la misma
+  familia casi negra, con paneles solo ligeramente más oscuros; en light
+  debe verse el patrón equivalente del built-in `catppuccin`.
+- El tema `system` sigue siendo una alternativa plana; no es el que usa
+  el escritorio por defecto.
+- Si se modifica `mocha-black.json`, hay que reiniciar opencode: el TUI
+  lee la definición del tema custom al arrancar.
+- `~/.config/opencode/cli.json` debe tener `theme.name=mocha-black` y
+  `theme.mode=dark` en dark, o `catppuccin`/`light` en light, conservando
+  el resto de claves (`session`, etc.).
+- En una instalación limpia, `sudo ./install.sh` debe crear ese
+  `cli.json` aunque opencode no se haya abierto. Si se borra,
+  `theme-mode dark` debe volver a crearlo.
+- `verify.sh` debe pasar las comprobaciones de `opencode`: store, perfil
+  y `cli.json`.
+
+**Resultado (2026-11-22):** JSON y copias store/perfil actualizados;
+`install_opencode_config` probado en update/create y dark/light,
+conservando `session.sidebar` y permisos; `theme-mode` crea `cli.json` en
+un HOME temporal; `verify.sh` comprueba raised, border, `@dialog` y
+`cli.json`. Pendiente la prueba visual tras reiniciar opencode.
+
+### Versiones latest + fallback (2026-11-22, ADR-146)
+
+Política: herramientas externas a la última estable; fallback fijado si
+la última falla. No se exige versión idéntica.
+
+**Estático / unitario:**
+
+```sh
+bash -n install.sh lib/*.sh
+sh -n bin/desktop-doctor
+bash -n bin/ytwatch-update bin/theme-mode
+./install.sh --dry-run
+```
+
+- `latest_github_tag` devuelve el tag estable actual (Herdr, ytwatch,
+  Nerd Font) y vacío si no hay red.
+- `github_release_checksum` verifica `checksums.txt`/`SHA-256.txt`.
+- `version_ge` no permite downgrade si la instalada es más nueva.
+- `ueberzugpp_latest_obs_version` detecta la última versión del build
+  Debian 13; si falla, se usa `vendor/ueberzugpp_2.9.11_amd64.deb`.
+- `--dry-run` no descarga ni escribe.
+
+**Fallos simulados:**
+
+- latest 404 / sin red → fallback pinned.
+- checksum inválido → se descarta y se usa fallback.
+- versión instalada más nueva → no se toca.
+- Herdr sin `checksums.txt` → se registra SHA-256 y se instala; la
+  fallback v0.9.5 sí verifica el SHA fijado.
+- `zathura-pdf-mupdf` no se actualiza: sigue en 0.4.6 + SHA.
+
+**Excepción:** no se realiza la prueba de instalación real en VM con
+opencode antes/después (decisión del usuario). Queda como paso manual
+pendiente para quien quiera validar el ciclo completo.

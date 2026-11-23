@@ -36,6 +36,7 @@ install_user_configs() {
     log "[dry-run] instalar /usr/local/bin/desktop-safe, desktop-doctor y theme-mode"
     log "[dry-run] instalar ~/.local/bin/herdr-close si Herdr está instalado"
     log "[dry-run] instalar plantillas y paletas en ~/.local/share/luc-workspace"
+    log "[dry-run] crear/actualizar ~/.config/opencode/cli.json (tema del modo)"
     log "[dry-run] crear ~/.config/luc-workspace/recording.conf si no existe (audio mix/system/mic)"
     log "[dry-run] crear ~/.config/luc-workspace/display.conf si no existe (layout, refresh auto)"
     log "[dry-run] corregir propietario de ~/.config, ~/.local y ~/.config-backup"
@@ -94,6 +95,21 @@ install_user_configs() {
   # Plantillas y paletas para theme-mode (cambio de modo sin sudo)
   install_theme_store
 
+  # Tema custom de opencode (dark). theme-mode lo recopia al cambiar de
+  # modo, pero debe existir ya tras instalar para que el TUI lo encuentre
+  # aunque opencode no se haya abierto todavía.
+  local opencode_theme="$home/.config/opencode/themes/mocha-black.json"
+  if [[ -f "$PROJECT_ROOT/templates/opencode/mocha-black.json" ]]; then
+    make_user_dir "$home/.config/opencode/themes"
+    if [[ -f "$opencode_theme" ]] &&
+       ! cmp -s "$PROJECT_ROOT/templates/opencode/mocha-black.json" "$opencode_theme"; then
+      backup_user_path "$opencode_theme"
+    fi
+    run_user install -m 0644 -- "$PROJECT_ROOT/templates/opencode/mocha-black.json" \
+      "$opencode_theme"
+  fi
+  install_opencode_config
+
   # Asociaciones de archivos: PDF, imágenes y vídeo fuera del navegador.
   install_file_associations
 
@@ -111,6 +127,80 @@ install_user_configs() {
   ok "Configuración instalada para $TARGET_USER"
   info "Para iniciar: ejecuta 'startx' desde TTY (usa ~/.xinitrc → bspwm)"
   info "Binarios: desktop-safe, desktop-doctor y theme-mode dark|light|toggle|status"
+}
+
+# Crea/actualiza ~/.config/opencode/cli.json con el tema del modo activo.
+# Conserva el resto de claves del usuario; el tema custom se instala aparte.
+install_opencode_config() {
+  local home="$TARGET_HOME"
+  local config="$home/.config/opencode/cli.json"
+  local mode name tmp
+
+  case "${THEME:-mocha-black}" in
+    latte) mode="light"; name="catppuccin" ;;
+    *)     mode="dark";  name="mocha-black" ;;
+  esac
+
+  if dry_run; then
+    log "[dry-run] crear/actualizar $config (theme=$name, mode=$mode)"
+    return 0
+  fi
+
+  make_user_dir "$home/.config/opencode"
+  if [[ -f "$config" ]]; then
+    backup_user_path "$config"
+  fi
+
+  tmp=$(run_user mktemp "$home/.config/opencode/.cli.json.XXXXXX") || {
+    warn "opencode: no se pudo crear el temporal en $home/.config/opencode"
+    return 0
+  }
+  if ! run_user python3 - "$config" "$tmp" "$name" "$mode" <<'PYOPENCODE'
+import json
+import os
+import sys
+
+path, tmp, name, mode = sys.argv[1:5]
+data = {}
+if os.path.isfile(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception as exc:
+        print(f"opencode: JSON ilegible en {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1)
+
+if not isinstance(data, dict):
+    print(f"opencode: la raíz de {path} no es un objeto JSON", file=sys.stderr)
+    raise SystemExit(1)
+
+data.setdefault("$schema", "https://opencode.ai/v2/cli.json")
+theme = data.get("theme")
+if not isinstance(theme, dict):
+    theme = {}
+theme["name"] = name
+theme["mode"] = mode
+data["theme"] = theme
+
+perms = 0o600
+if os.path.isfile(path):
+    perms = os.stat(path).st_mode & 0o777
+with open(tmp, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, ensure_ascii=False, indent=2)
+    fh.write("\n")
+os.chmod(tmp, perms)
+PYOPENCODE
+  then
+    rm -f -- "$tmp"
+    warn "opencode: no se pudo actualizar $config; se conserva el anterior"
+    return 0
+  fi
+  if ! run_user mv -f -- "$tmp" "$config"; then
+    rm -f -- "$tmp"
+    warn "opencode: no se pudo mover el temporal a $config"
+    return 0
+  fi
+  ok "opencode: tema $name ($mode) en $config"
 }
 
 # Asociaciones MIME del escritorio: PDF → zathura, imágenes → feh, vídeo → VLC.

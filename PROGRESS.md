@@ -1045,6 +1045,8 @@ intactos.
   `~/.local/bin/ytwatch` (usuario, sin sudo) y `ueberzugpp` 2.9.10 por
   `.deb` directo del build Debian 13 del proyecto (sin añadir repos APT;
   dependencias vía `apt-get -f`). Idempotente y sin red no rompe nada.
+  (Histórico: ADR-143 movió ueberzugpp a `lib/previews.sh` y lo dejó
+  vendorizado en `2.9.11`.)
 - `templates/ytwatch/config.toml.in`: browser `firefox-esr`, audio
   default (`audio_only = true`), `quality = "720p"`, tema `terminal`
   (sigue la paleta viva de kitty; sin hex, fuera del store 20b),
@@ -1639,8 +1641,10 @@ UHD 630; sin servicios ni configuración extra.
   con batería.
 - `monocle.sh` ya estaba en el repo (`templates/bspwm/scripts/`), el
   vivo es idéntico: sin cambios.
-- `ctrl+space` funciona (probado con bspc): el warning de sxhkd es
-  histórico, no un fallo.
+- `ctrl+space` funciona (probado con bspc). El warning
+  `Unable to grab key 'ctrl+space'` no era de sxhkd: lo emitía dunst
+  porque su `close = ctrl+space` chocaba con el atajo de bspwm.
+  Corregido en ADR-143 (`close = ctrl+period`).
 
 ### Pruebas funcionales y arreglos — 2026-11-13
 
@@ -2674,3 +2678,119 @@ UHD 630; sin servicios ni configuración extra.
 - Capturas nuevas `assets/readme/luc-workspace-{dark,light}.jpg` y
   `assets/readme/palette.png`; las barras A/B se reutilizan.
 - `AGENTS.md` actualizado con los nuevos documentos y `assets/readme/`.
+
+### ueberzugpp vendorizado y Ctrl+Space — 2026-11-22
+
+- La instalación real desde un Debian 13 vacío llegó al final y falló
+  solo en la verificación: OBS ya no publica `ueberzugpp 2.9.10` (404) y
+  `verify.sh` exigía `/usr/bin/ueberzugpp`.
+- `ueberzugpp 2.9.11` queda vendorizado en
+  `vendor/ueberzugpp_2.9.11_amd64.deb`
+  (SHA-256 `7f351202756f5027ddf752da9d90bc67f0be41d8338f5b851b828d4386a5e815`).
+  `lib/previews.sh` lo instala siempre, separado de `--no-ytwatch`, para
+  que ranger conserve las miniaturas. No degrada una versión instalada
+  igual o más nueva; la actualización en una máquina existente sigue
+  siendo `ytwatch-update --ueberzugpp`.
+- `verify.sh` trata `ueberzugpp`/`ueberzug` como aviso opcional (no
+  aborta) y comprueba que dunst no capture `ctrl+space`.
+- `install.sh` ejecuta `cleanup_packages`, `prune_backups` y
+  `print_summary` aunque la verificación falle; el resumen distingue
+  errores obligatorios.
+- `templates/dunst/dunstrc.in`: `close = ctrl+period`; `ctrl+space`
+  sigue siendo el atajo de bspwm. `verify.sh` y `desktop-doctor`
+  detectan la colisión si vuelve.
+- `desktop-doctor` comprueba el tema Catppuccin activo en
+  `/usr/share/themes` (ya no `~/.themes/Windows-10-Dark`).
+- Validado en repo: `bash -n` de `install.sh`/`lib/*.sh`, `sh -n` de
+  `desktop-doctor` y `./install.sh --dry-run` rc 0.
+- Instalación real 2026-11-22 17:51: terminó con rc 0 y verificación
+  correcta; `ueberzugpp 2.9.11` quedó `ii` y `dpkg --audit` vacío. El
+  log mostró un error transitorio de `dpkg -i` por dependencias que
+  `apt-get -f` reparó; el paquete quedó bien, pero el ruido no era
+  aceptable.
+- Fix de orden: `lib/previews.sh` instala el `.deb` local con
+  `apt-get install -y --no-install-recommends --allow-unauthenticated`
+  (dependencias y configuración en una transacción). `dpkg -i` +
+  `apt-get -f` queda como fallback. `previews_repair_dpkg` repara un
+  dpkg a medias antes de empezar y `ueberzugpp_binaries_ok` exige estado
+  `install ok installed`, no solo binarios. `verify.sh` avisa si el
+  paquete está sin configurar o si `dpkg --audit` tiene pendientes.
+- Pendiente: probar el orden nuevo en una VM Debian 13 limpia (sin las
+  dependencias) y comprobar que el log no contiene
+  `dpkg: problemas de dependencias`.
+- Pendiente: reinicio de sesión y comprobar que `session.log` no muestra
+  `Unable to grab key`; probar `Ctrl+Period` y una actualización
+  posterior con `ytwatch-update --ueberzugpp`.
+
+### Brave: temas CWS fuera y GTK en caliente — 2026-11-22
+
+- Diagnóstico: `Super+Alt+T` sí ejecutaba `theme-mode` (timestamps de
+  `mode`, `gtk.env`, `dunstrc` y `kitty.conf` a las 18:07:51), pero
+  Brave tenía seleccionado el tema CWS Latte
+  (`extensions.theme.id=jhj...`, `system_theme=0`). Un tema CWS manda
+  sobre GTK, así que Brave ignoraba `Net/ThemeName` y se quedaba claro.
+- La policy instalaba Mocha y Latte como `normal_installed`; al
+  instalarse, Brave los aplica automáticamente. Se retiran de
+  `ExtensionSettings` (ADR-144). Solo queda SurfingKeys forzada.
+- `bin/brave-theme` desactiva los dos IDs si ya estaban instalados
+  (`state=0`) y añade `check` (0 = GTK, 1 = tema CWS/restos).
+  `status` muestra el estado de Mocha/Latte.
+- `verify.sh` comprueba que la policy no vuelve a incluir los temas y
+  avisa si el perfil no está en «Usar GTK». `desktop-doctor` muestra el
+  mismo aviso.
+- Validado: `brave-theme check` detecta el perfil actual como sucio;
+  en un perfil temporal, `apply` deja `extensions.theme.id=""`,
+  `system_theme=1` y ambos temas con `state=0`, y `check` devuelve 0.
+- Pendiente: `sudo ./install.sh`, cerrar Brave, ejecutar
+  `brave-theme apply --mode dark`, reabrir y comprobar que
+  `Super+Alt+T` cambia Brave en caliente. Si Brave 158 ya no reacciona a
+  XSETTINGS tras quitar el tema CWS, habría que estudiar un fallback
+  (reinicio de Brave o cambio de tema CWS por ID).
+
+### opencode dark: superficies Catppuccin — 2026-11-22
+
+- Diagnóstico: en light opencode usa el built-in `catppuccin`; en dark
+  usa el custom `mocha-black`. El custom ponía `background.raised` en
+  `surface0`/`surface1` (`#1a1a24`/`#26262f`), mientras el built-in
+  Catppuccin usa `mantle`/`crust` para paneles (`#08080d`/`#050509`) y
+  `surface0` para bordes. Por eso el input/bloques se veían más claros
+  en dark. El tema `system` se ve uniforme porque usa el fondo del
+  terminal para todo.
+- `templates/opencode/mocha-black.json`: `background.raised` pasa a
+  `#08080d`/`#050509`/`#050509`; `border.base` a `#1a1a24`; se añade
+  `@dialog` con `background.base = $background.raised.base`.
+- `install_user_configs` copia el tema a
+  `~/.config/opencode/themes/mocha-black.json` (con backup) aunque
+  opencode no se haya abierto; `theme-mode` lo sigue recopiando.
+- `install_user_configs` crea/actualiza también
+  `~/.config/opencode/cli.json` con `theme.name`/`mode` del modo activo,
+  conserva el resto de claves y el `$schema` V2, y hace backup.
+  `theme-mode` crea `cli.json` si falta (opencode instalado después).
+- `verify.sh` comprueba store y perfil: raised, border, `@dialog` y
+  `cli.json` con el tema/modo activo.
+- Validado: JSON OK; store y perfil actualizados; `install_opencode_config`
+  probado en update/create y dark/light, conservando `session.sidebar` y
+  permisos; `theme-mode --no-reload dark` crea `cli.json` en un HOME
+  temporal. Pendiente reiniciar opencode y comprobar visualmente
+  dark/light (la definición del tema custom se lee al arrancar el TUI).
+
+### Versiones latest + fallback y política — 2026-11-22
+
+- `lib/versions.sh`: helpers para último tag estable de GitHub, URL de
+  asset, checksum desde `checksums.txt`/`SHA-256.txt` y comparación de
+  versiones sin downgrade.
+- `ueberzugpp`: `lib/previews.sh` resuelve la última versión del build
+  Debian 13 en OBS; registra su SHA-256 (OBS no publica checksums) y cae
+  al `.deb` vendorizado 2.9.11 con SHA si falla. `ytwatch-update
+  --ueberzugpp` también resuelve la última de OBS.
+- Herdr: última estable de GitHub; sin `checksums.txt` registra SHA-256;
+  fallback v0.9.5 verificado con SHA.
+- ytwatch: última estable + `checksums.txt`; fallback v0.3.0 verificado.
+- Nerd Font: última estable + `SHA-256.txt`; fallback 3.5.1 verificado.
+- `zathura-pdf-mupdf` sigue pinned en 0.4.6 + SHA (compatibilidad con
+  MuPDF de Debian 13).
+- `PROJECT_VERSION=1.0.1`; política documentada en
+  `docs/reproducibility.md`, AGENTS regla 34 y ADR-146.
+- Validación: `bash -n`, `sh -n`, `--dry-run` rc 0 y pruebas unitarias
+  de fallback; no se ejecutó instalación real en VM (decisión del
+  usuario). Queda como paso manual.

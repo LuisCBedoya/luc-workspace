@@ -85,9 +85,16 @@ FIRMWARE_PKGS=(
   firmware-atheros firmware-brcm80211 firmware-mediatek
 )
 
-NERD_FONT_VERSION="3.5.1"
-NERD_FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_FONT_VERSION}/JetBrainsMono.tar.xz"
-NERD_FONT_SHA256="04d5e8f903693f9dd13e16f867e994834e681eb3c72c0d337a770dcda09010cf"
+NERD_FONT_REPO="ryanoasis/nerd-fonts"
+NERD_FONT_FALLBACK_VERSION="3.5.1"
+NERD_FONT_FALLBACK_SHA256="04d5e8f903693f9dd13e16f867e994834e681eb3c72c0d337a770dcda09010cf"
+NERD_FONT_VERSION="$NERD_FONT_FALLBACK_VERSION"
+
+nerd_font_url() {
+  local version="${1:-$NERD_FONT_VERSION}"
+  printf 'https://github.com/%s/releases/download/v%s/JetBrainsMono.tar.xz' \
+    "$NERD_FONT_REPO" "${version#v}"
+}
 
 APT_COMPONENTS=()
 APT_MISSING_COMPONENTS=()
@@ -618,10 +625,58 @@ font_fallback() {
   warn "Se usará la fuente '$LUC_WORKSPACE_FONT' en bspwm porque la Nerd Font no está disponible."
 }
 
+# Instala una versión concreta de JetBrainsMono Nerd Font. La fallback usa
+# el SHA fijado; la última estable usa SHA-256.txt de la release.
+install_nerd_font_candidate() {
+  local version="$1"
+  local cache="/var/cache/luc-workspace"
+  local archive="$cache/JetBrainsMono-${version}.tar.xz"
+  local target="/usr/local/share/fonts/JetBrainsMonoNerd"
+  local expected got
+
+  run_root install -d -m 0755 "$cache"
+  info "Descargando JetBrainsMono Nerd Font v${version}"
+  if ! run_root curl -fL --retry 3 --connect-timeout 20 -o "$archive" \
+       "$(nerd_font_url "$version")"; then
+    warn "No se pudo descargar la Nerd Font v$version"
+    return 1
+  fi
+
+  if [[ "$version" == "$NERD_FONT_FALLBACK_VERSION" ]]; then
+    expected="$NERD_FONT_FALLBACK_SHA256"
+  else
+    expected=$(github_release_checksum "$NERD_FONT_REPO" "v$version" \
+      "SHA-256.txt" "JetBrainsMono.tar.xz" || true)
+    if [[ -z "$expected" ]]; then
+      warn "Nerd Font v$version no publica SHA-256 para JetBrainsMono.tar.xz; se descarta"
+      run_root rm -f "$archive"
+      return 1
+    fi
+  fi
+
+  got=$(sha256_file "$archive")
+  if [[ "$got" != "$expected" ]]; then
+    warn "Checksum de Nerd Font v$version no coincide (esperado $expected, obtenido ${got:-ninguno}); se descarta"
+    run_root rm -f "$archive"
+    return 1
+  fi
+
+  run_root install -d -m 0755 "$target"
+  if ! run_root tar -xJf "$archive" -C "$target"; then
+    warn "No se pudo extraer la Nerd Font v$version"
+    return 1
+  fi
+  run_root fc-cache -f >/dev/null 2>&1 || true
+  NERD_FONT_VERSION="$version"
+  ok "Nerd Font v$version instalada en $target"
+  return 0
+}
+
 install_nerd_font() {
   section "Fuente Nerd Font"
   if dry_run; then
-    log "[dry-run] descargar $NERD_FONT_URL"
+    log "[dry-run] resolver última estable de $NERD_FONT_REPO (SHA-256.txt); fallback $NERD_FONT_FALLBACK_VERSION"
+    log "[dry-run] descargar $(nerd_font_url) si es la última"
     log "[dry-run] verificar SHA-256 y extraer en /usr/local/share/fonts/JetBrainsMonoNerd"
     return 0
   fi
@@ -629,32 +684,28 @@ install_nerd_font() {
     ok "JetBrainsMono Nerd Font ya está instalada"
     return 0
   fi
-  local cache="/var/cache/luc-workspace"
-  local archive="$cache/JetBrainsMono-${NERD_FONT_VERSION}.tar.xz"
-  local target="/usr/local/share/fonts/JetBrainsMonoNerd"
-  run_root install -d -m 0755 "$cache"
-  if [[ ! -r "$archive" ]]; then
-    info "Descargando JetBrainsMono Nerd Font v${NERD_FONT_VERSION}"
-    if ! run_root curl -fL --retry 3 --connect-timeout 20 -o "$archive" "$NERD_FONT_URL"; then
-      warn "No se pudo descargar la Nerd Font; se usa la fuente JetBrains Mono de Debian."
-      font_fallback
+
+  local latest fallback want
+  latest=""
+  if cmd_exists curl; then
+    latest=$(latest_github_tag "$NERD_FONT_REPO" 2>/dev/null || true)
+    latest="${latest#v}"
+  fi
+  fallback="$NERD_FONT_FALLBACK_VERSION"
+  want="${latest:-$fallback}"
+
+  if [[ -n "$latest" ]] && install_nerd_font_candidate "$latest"; then
+    return 0
+  fi
+  if [[ "$fallback" != "$latest" ]]; then
+    warn "Nerd Font $want no se pudo instalar; se usa el fallback $fallback"
+    if install_nerd_font_candidate "$fallback"; then
       return 0
     fi
   fi
-  if ! printf '%s  %s\n' "$NERD_FONT_SHA256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-    warn "Checksum incorrecto para $archive; se elimina el archivo y se usa la fuente de Debian."
-    run_root rm -f "$archive"
-    font_fallback
-    return 0
-  fi
-  run_root install -d -m 0755 "$target"
-  if ! run_root tar -xJf "$archive" -C "$target"; then
-    warn "No se pudo extraer la Nerd Font; se usa la fuente de Debian."
-    font_fallback
-    return 0
-  fi
-  run_root fc-cache -f >/dev/null 2>&1 || true
-  ok "Nerd Font instalada en $target"
+  warn "No se pudo instalar la Nerd Font; se usa la fuente JetBrains Mono de Debian."
+  font_fallback
+  return 0
 }
 
 enable_base_services() {

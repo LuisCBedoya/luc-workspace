@@ -16,6 +16,11 @@
 set -Eeuo pipefail
 
 PROG="brave-theme"
+# Temas Catppuccin de la Chrome Web Store. La policy ya no los instala:
+# al instalarse, Brave los aplica y pisan «Usar GTK» (ADR-144). El helper
+# los desactiva si quedaron de una instalación anterior.
+THEME_MOCHA_ID="bkkmolkhemgaeaeggcmfbghljjjoofoh"
+THEME_LATTE_ID="jhjnalhegpceacdhbplhnakmkdliaddd"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/luc-workspace"
 MODE_FILE="$CONFIG_DIR/mode"
 PROFILE_DIR="${BRAVE_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/BraveSoftware/Brave-Browser/Default}"
@@ -28,10 +33,12 @@ info() { printf '  %s\n' "$*"; }
 
 usage() {
   cat <<'EOF'
-Uso: brave-theme [apply|status] [--mode dark|light] [--quiet]
+Uso: brave-theme [apply|status|check] [--mode dark|light] [--quiet]
 
   apply     asegura «Usar GTK» y el esquema del sistema en Preferences
-  status    muestra el modo y lo que hay en Preferences (por defecto: apply)
+  status    muestra el modo y lo que hay en Preferences
+  check     código 0 si Brave usa GTK; 1 si hay un tema CWS seleccionado
+            (por defecto: apply)
 
   --mode dark|light   valida el modo (el estado de GTK es el mismo en ambos)
   --quiet             no imprime el resumen de apply
@@ -79,7 +86,8 @@ acquire_lock() {
 prefs_state() {
   local action="$1"
 
-  python3 - "$PREFS" "$BACKUP" "$PROFILE_DIR" "$action" <<'PY'
+  python3 - "$PREFS" "$BACKUP" "$PROFILE_DIR" "$action" \
+    "$THEME_MOCHA_ID" "$THEME_LATTE_ID" <<'PY'
 import copy
 import json
 import os
@@ -87,7 +95,7 @@ import shutil
 import sys
 import tempfile
 
-prefs, backup, profile, action = sys.argv[1:5]
+prefs, backup, profile, action, mocha_id, latte_id = sys.argv[1:7]
 
 
 def fail(message):
@@ -130,6 +138,16 @@ ext_theme = section(extensions, "theme")
 ext_theme["id"] = ""
 ext_theme["system_theme"] = 1
 ext_theme.pop("pack", None)
+
+# Si una instalación anterior dejó los temas Catppuccin de la CWS
+# instalados, se desactivan. Un tema de la CWS activo manda sobre GTK
+# y rompe el cambio en caliente.
+ext_settings = extensions.get("settings")
+if isinstance(ext_settings, dict):
+    for theme_id in (mocha_id, latte_id):
+        entry = ext_settings.get(theme_id)
+        if isinstance(entry, dict):
+            entry["state"] = 0
 
 if data == before:
     print("unchanged")
@@ -217,13 +235,15 @@ cmd_status() {
 
   printf '%s: %s (%s)\n' "$PROG" "$mode" "$theme"
   if [[ -f "$PREFS" ]]; then
-    python3 - "$PREFS" <<'PY' 2>/dev/null || printf '  Preferences ilegible\n'
+    python3 - "$PREFS" "$THEME_MOCHA_ID" "$THEME_LATTE_ID" <<'PY' 2>/dev/null || printf '  Preferences ilegible\n'
 import json
 import sys
 
 data = json.load(open(sys.argv[1], encoding="utf-8"))
+mocha_id, latte_id = sys.argv[2:4]
 theme = data.get("browser", {}).get("theme", {})
 ext = data.get("extensions", {}).get("theme", {})
+settings = data.get("extensions", {}).get("settings", {})
 scheme = theme.get("color_scheme2", "?")
 names = {0: "sistema", 1: "claro", 2: "oscuro"}
 print(f"  tema:     {ext.get('id') or '(Usar GTK)'}")
@@ -234,6 +254,9 @@ if "pack" in ext:
     print(f"  pack:     {ext['pack']}")
 if "user_color2" in theme or "color_variant2" in theme:
     print("  color:    personalizado (user_color2/color_variant2 presentes)")
+for theme_id, name in ((mocha_id, "Mocha"), (latte_id, "Latte")):
+    if theme_id in settings:
+        print(f"  {name}:     state={settings[theme_id].get('state', '?')}")
 PY
   else
     info "sin perfil de Brave ($PREFS)"
@@ -246,12 +269,57 @@ PY
   fi
 }
 
+# check: solo lectura. Devuelve 0 si «Usar GTK» está limpio y 1 si hay un
+# tema de la CWS o restos de un tema anterior. Útil para verify/doctor.
+cmd_check() {
+  python3 - "$PREFS" "$THEME_MOCHA_ID" "$THEME_LATTE_ID" <<'PY'
+import json
+import os
+import sys
+
+prefs, mocha_id, latte_id = sys.argv[1:4]
+if not os.path.isfile(prefs):
+    print("  sin perfil de Brave")
+    raise SystemExit(0)
+
+try:
+    data = json.load(open(prefs, encoding="utf-8"))
+except Exception as exc:
+    print(f"  Preferences ilegible: {exc}")
+    raise SystemExit(1)
+
+ext = data.get("extensions", {}).get("theme", {})
+settings = data.get("extensions", {}).get("settings", {})
+theme = data.get("browser", {}).get("theme", {})
+issues = []
+
+if ext.get("id"):
+    issues.append(f"tema CWS seleccionado: {ext['id']}")
+if ext.get("system_theme") != 1:
+    issues.append(f"extensions.theme.system_theme={ext.get('system_theme')!r} (se espera 1)")
+if "pack" in ext:
+    issues.append("extensions.theme.pack presente")
+if theme.get("color_scheme2") != 0:
+    issues.append(f"browser.theme.color_scheme2={theme.get('color_scheme2')!r} (se espera 0)")
+if "user_color2" in theme or "color_variant2" in theme:
+    issues.append("color personalizado de Brave presente")
+
+for theme_id, name in ((mocha_id, "Mocha"), (latte_id, "Latte")):
+    if theme_id in settings and settings[theme_id].get("state") != 0:
+        issues.append(f"tema {name} no desactivado (state={settings[theme_id].get('state')!r})")
+
+for issue in issues:
+    print(f"  {issue}")
+raise SystemExit(1 if issues else 0)
+PY
+}
+
 main() {
   local cmd="apply" mode="" quiet=0
 
   while (($# > 0)); do
     case "$1" in
-      apply|status) cmd="$1" ;;
+      apply|status|check) cmd="$1" ;;
       --mode)
         [[ $# -ge 2 ]] || die "--mode requiere dark o light"
         mode="$2"
@@ -276,6 +344,7 @@ main() {
   case "$cmd" in
     apply) apply_theme "$mode" "$quiet" ;;
     status) cmd_status ;;
+    check) cmd_check ;;
   esac
 }
 

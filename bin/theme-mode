@@ -413,24 +413,39 @@ update_opencode_theme() {
     *) return 1 ;;
   esac
   config="$HOME_DIR/.config/opencode/cli.json"
-  [[ -f "$config" ]] || return 1
 
   # Tema custom: Catppuccin con las superficies de mocha-black.
   theme_dir="$HOME_DIR/.config/opencode/themes"
   theme_src="$HOME_DIR/.local/share/luc-workspace/templates/opencode/mocha-black.json"
+  mkdir -p "$HOME_DIR/.config/opencode" "$theme_dir" 2>/dev/null || true
   if [[ -f "$theme_src" ]]; then
-    mkdir -p "$theme_dir" 2>/dev/null || true
     cp "$theme_src" "$theme_dir/mocha-black.json" 2>/dev/null || true
   fi
 
+  # Crea cli.json si opencode todavía no lo ha generado (instalación
+  # limpia o app instalada pero nunca abierta). Conserva el resto de
+  # claves y el `$schema` V2.
   python3 - "$config" "$name" "$tm" <<'PYOPENCODE'
 import json
+import os
 import sys
+import tempfile
 
 path, name, mode = sys.argv[1:4]
-with open(path, encoding="utf-8") as fh:
-    data = json.load(fh)
+data = {}
+if os.path.isfile(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception as exc:
+        print(f"theme-mode: opencode: JSON ilegible en {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1)
 
+if not isinstance(data, dict):
+    print(f"theme-mode: opencode: la raíz de {path} no es un objeto JSON", file=sys.stderr)
+    raise SystemExit(1)
+
+data.setdefault("$schema", "https://opencode.ai/v2/cli.json")
 theme = data.get("theme")
 if not isinstance(theme, dict):
     theme = {}
@@ -438,9 +453,22 @@ theme["name"] = name
 theme["mode"] = mode
 data["theme"] = theme
 
-with open(path, "w", encoding="utf-8") as fh:
-    json.dump(data, fh, ensure_ascii=False, indent=2)
-    fh.write("\n")
+os.makedirs(os.path.dirname(path), exist_ok=True)
+perms = 0o600
+if os.path.isfile(path):
+    perms = os.stat(path).st_mode & 0o777
+fd, tmp = tempfile.mkstemp(prefix=".cli.json.", dir=os.path.dirname(path), text=True)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.chmod(tmp, perms)
+    os.replace(tmp, path)
+finally:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
 PYOPENCODE
 }
 

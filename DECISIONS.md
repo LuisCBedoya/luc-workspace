@@ -3778,3 +3778,189 @@ definitivo (versión 1.0.0).
   conservan los átomos viejos hasta reiniciar esas aplicaciones.
 - Las referencias a `dwm-setup` que quedan en ADRs y entradas históricas
   de `PROGRESS.md` son deliberadas.
+
+## ADR-143 — ueberzugpp vendorizado y previews opcionales no bloqueantes
+
+**Contexto:** una instalación real desde Debian 13 minimal falló al final.
+El instalador fijaba `ueberzugpp 2.9.10`, pero OBS ya solo publicaba
+`2.9.11`: la URL devolvía 404. `install_ueberzugpp` lo trataba como aviso,
+pero `verify.sh` exigía `/usr/bin/ueberzugpp` y `ueberzug`, así que la
+verificación abortaba, no se ejecutaban `cleanup_packages`,
+`prune_backups` ni `print_summary`, y ranger/ytwatch quedaban sin
+miniaturas. Además, `dunst` usaba `close = ctrl+space`, la misma tecla
+global que `sxhkd` para flotante/tiled: dunst recibía BadAccess y ensuciaba
+`session.log`.
+
+**Decisión:**
+1. `ueberzugpp 2.9.11` se guarda en el repo como
+   `vendor/ueberzugpp_2.9.11_amd64.deb` (343.888 bytes, SHA-256
+   `7f351202756f5027ddf752da9d90bc67f0be41d8338f5b851b828d4386a5e815`).
+   `vendor/NOTICE` recoge la licencia GPL-3+ con excepción OpenSSL y la
+   fuente; `vendor/README.md`, el procedimiento de actualización.
+2. `lib/previews.sh` es el dueño de `ueberzugpp`: instala desde `vendor/`
+   con SHA-256 verificado y solo usa la URL de OBS como fallback si el
+   archivo local no existe. No se añade el repo OBS a APT. El `.deb`
+   local se instala con
+   `apt-get install -y --no-install-recommends --allow-unauthenticated
+   --allow-downgrades` para que APT resuelva las dependencias y configure
+   el paquete en una sola transacción; `dpkg -i` + `apt-get -f` queda
+   como fallback. Antes
+   se hacía `dpkg -i` primero y el paquete quedaba medio configurado con
+   un error de dependencias visible, aunque `apt-get -f` lo reparaba.
+3. `install_previews` se ejecuta siempre, también con `--no-ytwatch`,
+   porque ranger usa el mismo backend. `--no-ytwatch` solo omite el TUI.
+4. La instalación nunca degrada una versión instalada igual o más nueva.
+   Para actualizar una máquina existente se usa
+   `ytwatch-update --ueberzugpp`; para mover la base reproducible se
+   reemplaza el `.deb` de `vendor/`, se actualizan versión/SHA en
+   `lib/previews.sh` y se hace commit.
+5. `verify.sh` trata `ueberzugpp`/`ueberzug` como aviso opcional: si
+   faltan, lo dice y sigue, porque el escritorio no depende de las
+   miniaturas. `ueberzug` sale de la lista de comandos obligatorios.
+6. `install.sh` ejecuta `cleanup_packages`, `prune_backups` y
+   `print_summary` siempre; el resumen distingue errores obligatorios de
+   avisos y termina con código 1 solo si hay fallos obligatorios.
+7. `templates/dunst/dunstrc.in` usa `close = ctrl+period`.
+   `ctrl+space` queda reservado a `sxhkd` (ADR-106). `verify.sh` y
+   `desktop-doctor` comprueban la colisión para que no vuelva.
+8. `desktop-doctor` comprueba el tema Catppuccin activo en
+   `/usr/share/themes` leyendo `~/.config/luc-workspace/gtk.env`, en vez
+   de buscar `~/.themes/Windows-10-Dark`.
+
+**Consecuencias:**
+- `sudo ./install.sh` ya no depende de que OBS conserve una versión
+  concreta; el repo crece 336 KB.
+- La versión instalada por el instalador es reproducible; las
+  actualizaciones son explícitas y no se deshacen al reinstalar.
+- Sin `ueberzugpp` el escritorio se instala completo y avisa: ranger y
+  ytwatch pierden solo las miniaturas.
+- Un 404 de OBS o un fallo de `dpkg` ya no impide ver el resumen final.
+- El conflicto `Ctrl+Space` de dunst queda documentado y cubierto por
+  verificaciones estáticas.
+
+## ADR-144 — Brave: fuera los temas CWS; solo GTK en caliente
+
+**Contexto:** `theme-mode toggle` (`Super+Alt+T`) debe cambiar Brave en
+caliente entre Catppuccin Mocha Black y Latte. El camino es «Usar GTK»:
+`theme-mode` re-renderiza `xsettingsd.conf`, envía `SIGHUP` y Brave
+repinta al recibir el nuevo `Net/ThemeName`. Sin embargo, la policy de
+Brave instalaba los temas Catppuccin Mocha (`bkkmolkhemgaeaeggcmfbghljjjoofoh`)
+y Latte (`jhjnalhegpceacdhbplhnakmkdliaddd`) como `normal_installed`.
+Al instalar un tema de la CWS, Brave lo aplica automáticamente; quedó
+activo Latte (`extensions.theme.id=jhj...`, `system_theme=0`). Un tema
+de la CWS manda sobre GTK: `Super+Alt+T` seguía cambiando el resto del
+escritorio, pero Brave se quedaba con los colores fijos de Latte. La
+captura del usuario mostraba barra clara y contenido oscuro.
+
+**Decisión:**
+1. `/etc/brave/policies/managed/luc-workspace.json` deja de instalar los
+   dos temas de la CWS. Solo conserva SurfingKeys como
+   `force_installed`. El escritorio usa exclusivamente el tema GTK.
+2. `bin/brave-theme` limpia `extensions.theme.id`, pone
+   `extensions.theme.system_theme=1`, elimina `pack`,
+   `user_color2` y `color_variant2`, y desactiva los dos temas CWS si
+   siguen en el perfil (`extensions.settings.<id>.state=0`).
+3. Se añade `brave-theme check`: devuelve 0 si el perfil está en «Usar
+   GTK» y 1 si hay un tema CWS seleccionado, `system_theme != 1`,
+   `pack`/colores personalizados o alguno de los temas sin desactivar.
+4. `verify.sh` comprueba que la policy no vuelve a incluir esos IDs y
+   avisa si el perfil de Brave no está en «Usar GTK». `desktop-doctor`
+   muestra el mismo aviso. Si Brave está abierto y hay cambios
+   pendientes, se cierra y se vuelve a abrir.
+5. Los atajos nativos (`brave.accelerators`) no cambian: son otro
+   mecanismo y ya funcionan.
+
+**Consecuencias:**
+- `Super+Alt+T` vuelve a cambiar Brave en caliente vía GTK, sin
+  reiniciar, como antes.
+- Un perfil antiguo con Latte/Mocha seleccionado queda corregido en el
+  siguiente arranque de Brave; si Brave estaba abierto durante la
+  instalación, hay que cerrarlo una vez.
+- Si el usuario instala un tema CWS a mano, ese tema pisará GTK;
+  `brave-theme` lo desactivará en el siguiente arranque. Es una decisión
+  explícita: el escritorio usa GTK.
+- La policy es más pequeña y no depende de IDs de temas de la CWS.
+
+## ADR-145 — opencode dark: superficies Catppuccin correctas
+
+**Contexto:** en light, opencode usa el tema built-in `catppuccin` y los
+paneles se ven uniformes; en dark usa el tema custom `mocha-black` y el
+input/bloques elevados se veían más claros. El tema built-in de
+Catppuccin mapea `backgroundPanel` a `mantle` (`#08080d` en la paleta
+mocha-black) y `backgroundElement` a `crust` (`#050509`), con
+`border` en `surface0` (`#1a1a24`). El tema custom usaba
+`surface0`/`surface1` (`#1a1a24`/`#26262f`) en `background.raised`, así
+que las superficies elevadas se separaban demasiado del fondo
+`#0d0d14`. El tema `system` se ve uniforme porque usa el fondo del
+terminal para todo.
+
+**Decisión:**
+1. `templates/opencode/mocha-black.json` usa:
+   - `background.base` `#0d0d14`
+   - `background.raised.base` `#08080d` (mantle)
+   - `background.raised.high` y `.max` `#050509` (crust)
+   - `border.base` `#1a1a24` (surface0)
+   - `@dialog.background.base` → `$background.raised.base`
+2. `install_user_configs` copia el tema a
+   `~/.config/opencode/themes/mocha-black.json` aunque opencode no se
+   haya abierto todavía; `theme-mode` lo sigue recopiando al cambiar de
+   modo. Se hace backup antes de reemplazar.
+3. `install_user_configs` crea/actualiza también
+   `~/.config/opencode/cli.json` con `theme.name`/`mode` del modo activo
+   (`mocha-black`/`dark` o `catppuccin`/`light`), conserva el resto de
+   claves y el `$schema` V2, y hace backup antes de escribir.
+   `theme-mode` crea el archivo si falta, para cuando opencode se instala
+   después.
+4. `verify.sh` comprueba el store y el perfil: `raised`
+   `#08080d`/`#050509`/`#050509`, `border.base` `#1a1a24`, `@dialog`
+   apuntando a `raised.base`, y `cli.json` con el `theme.name`/`mode`
+   del modo activo. Así no vuelve a colarse surface0/1 ni otro tema.
+5. El tema light sigue siendo el built-in `catppuccin`; no se crea un
+   custom light.
+6. Cambiar la definición de un tema custom exige reiniciar el TUI:
+   `opencode reload` no recarga el JSON del tema.
+
+**Consecuencias:**
+- Dark y light usan el mismo patrón de profundidad (base + paneles
+  ligeramente más oscuros), sin el salto visual del input.
+- El tema sigue siendo reproducible desde el repo: no depende de la
+  Chrome Web Store ni de archivos externos.
+- Si alguien vuelve a poner surface0/1 en `raised`, `verify.sh` lo
+  detecta antes de cerrar la instalación.
+
+## ADR-146 — Política de versiones: última estable + fallback
+
+**Contexto:** el incidente de `ueberzugpp 2.9.10` (404 en OBS) demostró
+que congelar una versión externa puede romper la instalación, pero
+tampoco se busca una reproducibilidad bit a bit: el usuario quiere que
+el instalador resuelva la **última estable** de las herramientas
+externas y que la configuración/temas sigan fijados en el repo.
+
+**Decisión:**
+1. La reproducibilidad es **funcional**: mismo escritorio, ajustes,
+   temas y comportamiento; no versiones idénticas.
+2. Se instala la última estable al ejecutar `install.sh` para
+   `ueberzugpp` (OBS), Herdr, ytwatch y Nerd Font. `yt-dlp`, Oh My Zsh,
+   Brave y APT ya funcionan así.
+3. Cada componente tiene un fallback fijo/vendorizado con SHA-256. Si el
+   release falla, desaparece o no se puede verificar, se usa el fallback.
+   Nunca se degrada una versión instalada igual o más nueva.
+4. `zathura-pdf-mupdf` queda **pinned** en 0.4.6 + SHA: compila contra
+   MuPDF de Debian 13 y una versión nueva puede romper el build. Es la
+   excepción deliberada.
+5. opencode es externo: el repo no lo instala. `install_user_configs`
+   deja `~/.config/opencode/cli.json` y
+   `~/.config/opencode/themes/mocha-black.json` antes de que opencode
+   exista; el instalador oficial de opencode no toca esa configuración.
+6. `verify.sh` comprueba funcionamiento/coherencia, no versiones
+   exactas. `--dry-run` sigue sin red ni escrituras.
+7. La política se documenta en `docs/reproducibility.md` y AGENTS
+   (regla 34).
+
+**Consecuencias:**
+- Una instalación nueva usa versiones actuales y sigue funcionando si
+  un release desaparece.
+- No se garantiza que dos instalaciones en fechas distintas tengan las
+  mismas versiones; sí el mismo estado de configuración.
+- Para bit a bit harían falta snapshots de Debian/Brave/opencode y
+  renunciar a actualizaciones; queda fuera de este proyecto.

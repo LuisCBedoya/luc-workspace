@@ -126,15 +126,26 @@ ueberzugpp_installed_version() {
   dpkg-query -W -f='${Version}' ueberzugpp 2>/dev/null | head -1
 }
 
+ueberzugpp_latest_obs_version() {
+  curl -fsSL --max-time 15 "$UEBERZUGPP_OBS/" 2>/dev/null |
+    grep -oE 'ueberzugpp_[0-9][0-9.]*_amd64\.deb' |
+    sed -E 's/^ueberzugpp_([0-9][0-9.]*)_amd64\.deb$/\1/' |
+    sort -V | tail -1
+}
+
 update_ueberzugpp() {
-  local tag ver current expected_url tmp_deb got
+  local tag obs_ver ver current expected_url tmp_deb got
   local rc=0
   command -v dpkg-query >/dev/null 2>&1 || die "dpkg-query no disponible"
   tag=$(curl -fsSL --max-time 8 \
     https://api.github.com/repos/jstkdng/ueberzugpp/releases/latest 2>/dev/null |
     sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-  [[ -n "$tag" ]] || die "no se pudo leer la última release de ueberzugpp"
-  ver="${tag#v}"
+  obs_ver=$(ueberzugpp_latest_obs_version)
+  if [[ -z "$obs_ver" && -z "$tag" ]]; then
+    die "no se pudo leer la última release de ueberzugpp"
+  fi
+  # El build de OBS es el que se puede instalar; GitHub puede ir por delante.
+  ver="${obs_ver:-${tag#v}}"
 
   current=$(ueberzugpp_installed_version)
   if [[ -n "$current" && "$current" == "$ver" ]]; then
@@ -150,7 +161,7 @@ update_ueberzugpp() {
   expected_url="$UEBERZUGPP_OBS/ueberzugpp_${ver}_amd64.deb"
   tmp_deb=$(mktemp "${TMPDIR:-/tmp}/ueberzugpp.XXXXXX.deb")
   trap 'rm -f -- "$tmp_deb"' EXIT
-  printf '  descargando build de Debian 13 (%s)…\n' "$tag"
+  printf '  descargando build de Debian 13 (%s)…\n' "$ver"
   curl -fsSL --max-time 180 -o "$tmp_deb" "$expected_url" || {
     notify "ueberzugpp: no se pudo descargar" "El build de OBS para $ver puede no existir aún"
     die "no se pudo descargar $expected_url"

@@ -23,6 +23,8 @@ export BAR_HEIGHT
 
 # shellcheck source=lib/common.sh
 source "$PROJECT_ROOT/lib/common.sh"
+# shellcheck source=lib/versions.sh
+source "$PROJECT_ROOT/lib/versions.sh"
 # shellcheck source=lib/detect.sh
 source "$PROJECT_ROOT/lib/detect.sh"
 # shellcheck source=lib/packages.sh
@@ -57,6 +59,8 @@ source "$PROJECT_ROOT/lib/config.sh"
 source "$PROJECT_ROOT/lib/fastfetch.sh"
 # shellcheck source=lib/music.sh
 source "$PROJECT_ROOT/lib/music.sh"
+# shellcheck source=lib/previews.sh
+source "$PROJECT_ROOT/lib/previews.sh"
 # shellcheck source=lib/ytwatch.sh
 source "$PROJECT_ROOT/lib/ytwatch.sh"
 # shellcheck source=lib/herdr.sh
@@ -92,6 +96,7 @@ Instalador del escritorio: bspwm + polybar en Debian 13.
 
 Uso normal:
   ./install.sh              Instalación guiada (recomendado)
+  sudo ./install.sh         Equivalente; detecta igual el usuario destino
   ./install.sh --dry-run    Comprobar y mostrar el plan sin modificar
   ./install.sh --yes        Modo no interactivo (no añade repositorios)
   ./install.sh --help
@@ -114,8 +119,9 @@ El modo se cambia en caliente con: theme-mode dark|light|toggle|status.
 
 Música: yt-play (audio o vídeo de YouTube con fzf y miniatura), teclas XF86Audio*.
 Los binarios se actualizan con ytdlp-update; nunca solos.
-Buscador: ytwatch (TUI con miniaturas y cola); sin --no-ytwatch se instala
-junto con ueberzugpp (miniaturas), ambos con ytwatch-check / ytwatch-update.
+Buscador: ytwatch (TUI con miniaturas y cola); se omite con --no-ytwatch.
+Miniaturas: ueberzugpp vendorizado en vendor/ (ranger y ytwatch); se instala
+siempre. Actualización en una máquina ya instalada: ytwatch-update --ueberzugpp.
 Herdr: TUI de terminal; se instala en ~/.local/bin y se abre escribiendo
 'herdr' en kitty (--no-herdr para omitirlo). ranger/ytwatch muestran sus
 previews dentro de Herdr.
@@ -401,6 +407,8 @@ check_project_layout() {
 }
 
 print_summary() {
+  local status="${1:-ok}"
+
   if dry_run; then
     section "Dry-run completado"
     cat <<EOF
@@ -414,9 +422,14 @@ Para ejecutar de verdad:
 EOF
     return 0
   fi
-  section "Instalación completada"
+  if [[ "$status" == "error" ]]; then
+    section "Instalación finalizada con errores"
+    printf 'La verificación final encontró fallos obligatorios. Revisa el log:\n  %s\n\n' "$LOG_FILE"
+  else
+    section "Instalación completada"
+  fi
   cat <<EOF
-Instalación completada para: $TARGET_USER
+Usuario:                $TARGET_USER
 Home:                   $TARGET_HOME
 Log:                    $LOG_FILE
 Variantes polybar:      ~/.config/polybar/polybar-variant actual|referencia
@@ -427,6 +440,7 @@ Firewall:               UFW activo · módulo polybar (SSH 22/tcp permitido)
 Bluetooth:              módulo polybar · apagado por defecto · menú y audio
 Música/streams:         yt-play [--audio|--video] <url | búsqueda> · ytdlp-check|update|rollback
 Buscador TUI:           ytwatch (terminal) · ytwatch-check|update · miniaturas: ueberzugpp
+Miniaturas:             ueberzugpp $UEBERZUGPP_VERSION (última o fallback) · actualizar: ytwatch-update --ueberzugpp
 Herdr TUI:              escribe 'herdr' en kitty · ranger/ytwatch con previews dentro
 Avisos YouTube:         timer de usuario (dunst) · systemctl --user list-timers
 Kernel:                 vm.swappiness=10 (/etc/sysctl.d/99-luc-workspace-swappiness.conf)
@@ -475,6 +489,10 @@ EOF
   fi
   if [[ "${REBOOT_REQUIRED:-0}" -eq 1 ]]; then
     printf '  - Quirk ALC255 instalado; reinicia para aplicar el micrófono del jack combo.\n'
+  fi
+  if [[ "${PREVIEWS_UNAVAILABLE:-0}" -eq 1 ]]; then
+    printf '  - Aviso: ueberzugpp no quedó instalado; ranger/ytwatch sin miniaturas.\n'
+    printf '    Reintenta con: sudo ./install.sh o: ytwatch-update --ueberzugpp\n'
   fi
 }
 
@@ -565,6 +583,7 @@ main() {
   install_gtk_theme
   install_vlc_config
   install_zsh
+  install_previews
   install_ranger
   install_fastfetch
   install_music
@@ -578,10 +597,9 @@ main() {
   install_user_configs
   install_brave_theme_state
 
+  local verify_rc=0
   if ! dry_run; then
-    if ! verify_install; then
-      die "La verificación final falló. Revisa los errores y el log antes de reiniciar."
-    fi
+    verify_install || verify_rc=1
     cleanup_packages
   else
     cleanup_packages
@@ -591,7 +609,16 @@ main() {
 
   prune_backups
 
-  print_summary
+  if [[ "$verify_rc" -eq 0 ]]; then
+    print_summary
+  else
+    print_summary error
+  fi
+
+  if [[ "$verify_rc" -ne 0 ]]; then
+    error "La verificación final falló. Revisa los errores y el log antes de reiniciar."
+    exit 1
+  fi
 }
 
 main "$@"

@@ -13,7 +13,7 @@ verify_install() {
 
   for cmd in bspwm sxhkd polybar picom xsettingsd ufw bluetoothctl dunst rofi feh kitty flameshot i3lock \
     xss-lock convert brightnessctl xclip xdotool thunar udiskie v4l2-ctl ffmpeg pactl wpctl pamixer paplay amixer \
-    xwallpaper playerctl nvim zsh lsd ranger zathura vlc ueberzug fastfetch mpv fzf chafa \
+    xwallpaper playerctl nvim zsh lsd ranger zathura vlc fastfetch mpv fzf chafa \
     xdg-user-dir xrandr python3 wmctrl; do
     if cmd_exists "$cmd"; then
       debug "ok: $cmd"
@@ -534,8 +534,7 @@ verify_install() {
   if [[ "${INSTALL_YTWATCH:-yes}" == "yes" ]]; then
     for tw_path in "$home/.local/bin/ytwatch" \
       "$home/.local/bin/ueberzugpp" \
-      "$home/.config/ytwatch/config.toml" \
-      /usr/bin/ueberzugpp; do
+      "$home/.config/ytwatch/config.toml"; do
       if [[ -e "$tw_path" ]]; then
         debug "ok: $tw_path"
       else
@@ -566,6 +565,24 @@ verify_install() {
         failures=$((failures + 1))
       fi
     done
+  fi
+
+  # ueberzugpp: backend de previews de ranger/ytwatch. Es opcional: si falta,
+  # se avisa y se sigue; la instalación del escritorio no depende de él.
+  if [[ ! -x /usr/bin/ueberzugpp ]]; then
+    warn "ueberzugpp no instalado: ranger/ytwatch sin miniaturas (opcional)"
+    warn "Reinstala con: sudo ./install.sh (usa vendor/) o: ytwatch-update --ueberzugpp"
+  elif ! dpkg-query -W -f='${Status}' ueberzugpp 2>/dev/null |
+         grep -q 'install ok installed'; then
+    warn "ueberzugpp está sin configurar; ejecuta: sudo apt-get -f install"
+  elif [[ ! -x /usr/bin/ueberzug ]]; then
+    warn "Falta /usr/bin/ueberzug (shim de ueberzugpp); ranger no verá miniaturas"
+    warn "Reinstala con: sudo ./install.sh o: ytwatch-update --ueberzugpp"
+  else
+    debug "ok: ueberzugpp $(ueberzugpp_installed_version)"
+  fi
+  if [[ -n "$(dpkg --audit 2>/dev/null || true)" ]]; then
+    warn "dpkg tiene paquetes pendientes; ejecuta: sudo apt-get -f install"
   fi
 
   # Escritorios dinámicos (ADR-112): arranca con uno, workspace.sh
@@ -741,8 +758,9 @@ verify_install() {
       error "Brave: SurfingKeys no está forzada en las policies"
       failures=$((failures + 1))
     fi
-    # Los dos temas Catppuccin quedan instalados pero no forzados: son
-    # opcionales, el escritorio usa «Usar GTK» (ADR-115).
+    # Los temas Catppuccin de la CWS ya no se instalan por policy: al
+    # instalarse, Brave los aplica y pisan «Usar GTK», rompiendo el
+    # cambio en caliente vía xsettingsd (ADR-144).
     local theme_bad
     theme_bad=$(python3 - "$brave_policy" <<'PYCHK' 2>/dev/null || printf 'policy ilegible\n'
 import json
@@ -754,9 +772,9 @@ for ext_id, name in (
     ("bkkmolkhemgaeaeggcmfbghljjjoofoh", "Mocha"),
     ("jhjnalhegpceacdhbplhnakmkdliaddd", "Latte"),
 ):
-    mode = settings.get(ext_id, {}).get("installation_mode")
-    if mode != "normal_installed":
-        print(f"{name}: installation_mode={mode!r} (se espera 'normal_installed')")
+    if ext_id in settings:
+        mode = settings[ext_id].get("installation_mode")
+        print(f"{name}: sigue en ExtensionSettings (installation_mode={mode!r})")
 PYCHK
 )
     if [[ -n "$theme_bad" ]]; then
@@ -769,6 +787,16 @@ PYCHK
   else
     error "Falta $brave_policy"
     failures=$((failures + 1))
+  fi
+
+  # El perfil de Brave debe estar en «Usar GTK». Si hay un tema CWS
+  # seleccionado, el cambio de tema del escritorio no le afecta.
+  if [[ -x "$home/.local/bin/brave-theme" ]] && cmd_exists brave-browser; then
+    local brave_theme_check
+    if ! brave_theme_check=$(run_user "$home/.local/bin/brave-theme" check 2>&1); then
+      warn "Brave no sigue «Usar GTK»: $(printf '%s' "$brave_theme_check" | tr '\n' ' ')"
+      warn "Cierra Brave y ejecuta: brave-theme apply"
+    fi
   fi
 
   # Página de nueva pestaña propia (policy NewTabPageLocation). Vive en el
@@ -995,6 +1023,90 @@ PYCHK
     failures=$((failures + 1))
   fi
 
+  # Tema custom de opencode: dark usa mantle/crust (#08080d/#050509) en
+  # background.raised y surface0 (#1a1a24) en border, como el built-in
+  # Catppuccin. Si vuelve a surface0/1, el input/paneles se ven más claros
+  # y oscurecen la uniformidad del modo.
+  local opencode_store opencode_theme opencode_bad
+  opencode_store="$home/.local/share/luc-workspace/templates/opencode/mocha-black.json"
+  opencode_theme="$home/.config/opencode/themes/mocha-black.json"
+  opencode_bad=$(python3 - "$opencode_store" "$opencode_theme" <<'PYCHK' 2>/dev/null
+import json
+import os
+import sys
+
+want_raised = {"base": "#08080d", "high": "#050509", "max": "#050509"}
+for path in sys.argv[1:]:
+    if not os.path.isfile(path):
+        print(f"{path}: falta")
+        continue
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except Exception as exc:
+        print(f"{path}: JSON ilegible: {exc}")
+        continue
+    base = data.get("base", {})
+    raised = base.get("background", {}).get("raised", {})
+    for key, value in want_raised.items():
+        if raised.get(key) != value:
+            print(f"{path}: background.raised.{key}={raised.get(key)!r} (se espera {value})")
+    border = base.get("border", {}).get("base")
+    if border != "#1a1a24":
+        print(f"{path}: border.base={border!r} (se espera '#1a1a24')")
+    dialog = base.get("@dialog", {}).get("background", {}).get("base")
+    if dialog != "$background.raised.base":
+        print(f"{path}: @dialog.background.base={dialog!r} (se espera '$background.raised.base')")
+PYCHK
+)
+  if [[ -n "$opencode_bad" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      error "opencode: $line"
+      failures=$((failures + 1))
+    done <<<"$opencode_bad"
+  fi
+
+  # cli.json de opencode: theme.name/mode deben seguir el modo del escritorio.
+  local opencode_cli opencode_cfg_bad oc_name oc_mode
+  opencode_cli="$home/.config/opencode/cli.json"
+  case "${THEME:-mocha-black}" in
+    latte) oc_name="catppuccin"; oc_mode="light" ;;
+    *)     oc_name="mocha-black"; oc_mode="dark" ;;
+  esac
+  if [[ ! -f "$opencode_cli" ]]; then
+    error "Falta $opencode_cli (tema de opencode)"
+    failures=$((failures + 1))
+  else
+    opencode_cfg_bad=$(python3 - "$opencode_cli" "$oc_name" "$oc_mode" <<'PYCHK' 2>/dev/null
+import json
+import sys
+
+path, want_name, want_mode = sys.argv[1:4]
+try:
+    data = json.load(open(path, encoding="utf-8"))
+except Exception as exc:
+    print(f"{path}: JSON ilegible: {exc}")
+    raise SystemExit(0)
+theme = data.get("theme")
+if not isinstance(theme, dict):
+    theme = {}
+if theme.get("name") != want_name:
+    print(f"{path}: theme.name={theme.get('name')!r} (se espera {want_name!r})")
+if theme.get("mode") != want_mode:
+    print(f"{path}: theme.mode={theme.get('mode')!r} (se espera {want_mode!r})")
+if data.get("$schema") != "https://opencode.ai/v2/cli.json":
+    print(f"{path}: $schema={data.get('$schema')!r} (se espera V2)")
+PYCHK
+)
+    if [[ -n "$opencode_cfg_bad" ]]; then
+      while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        error "opencode: $line"
+        failures=$((failures + 1))
+      done <<<"$opencode_cfg_bad"
+    fi
+  fi
+
   # zathura no debe invertir las páginas: rompe cómics e imágenes.
   if [[ -f "$home/.config/zathura/zathurarc" ]] &&
      grep -qE '^set[[:space:]]+recolor[[:space:]]+true' "$home/.config/zathura/zathurarc"; then
@@ -1017,6 +1129,15 @@ PYCHK
     fi
     if ! grep -q '\[actualizaciones\]' "$home/.config/dunst/dunstrc"; then
       error "dunstrc: falta la regla [actualizaciones] (timeout = 0)"
+      failures=$((failures + 1))
+    fi
+    # dunst y sxhkd no pueden capturar la misma tecla global: el segundo
+    # recibe BadAccess y su atajo no funciona. Ctrl+Space es de bspwm.
+    if grep -qiE '^[[:space:]]*close[[:space:]]*=[[:space:]]*ctrl[[:space:]]*\+[[:space:]]*space' \
+         "$home/.config/dunst/dunstrc" 2>/dev/null &&
+       grep -qE '^[[:space:]]*ctrl[[:space:]]*\+[[:space:]]*space' \
+         "$home/.config/sxhkd/sxhkdrc" 2>/dev/null; then
+      error "dunstrc usa ctrl+space para cerrar, en conflicto con sxhkd"
       failures=$((failures + 1))
     fi
   fi

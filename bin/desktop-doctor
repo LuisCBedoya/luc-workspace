@@ -47,7 +47,7 @@ check_exec() {
 print_header "Binarios esenciales"
 for c in bspwm sxhkd polybar dunst rofi kitty feh flameshot i3lock xss-lock \
          brightnessctl xclip thunar udiskie v4l2-ctl ffmpeg pamixer wpctl \
-         xwallpaper playerctl nvim lxpolkit zsh lsd ranger zathura vlc ueberzug \
+         xwallpaper playerctl nvim lxpolkit zsh lsd ranger zathura vlc \
          brave-browser; do
   check_cmd "$c"
 done
@@ -82,6 +82,19 @@ if [ -f /etc/brave/policies/managed/luc-workspace.json ]; then
     printf '  [MAL] SurfingKeys no está forzada en la política\n'
   fi
 fi
+
+# Brave debe usar «Usar GTK»: un tema CWS seleccionado ignora el tema
+# del escritorio y rompe el cambio en caliente (ADR-144).
+if command -v brave-browser >/dev/null 2>&1 && [ -x "$HOME/.local/bin/brave-theme" ]; then
+  if brave_check=$("$HOME/.local/bin/brave-theme" check 2>&1); then
+    printf '  [OK] Brave usa el tema GTK\n'
+  else
+    printf '  [MAL] Brave no usa el tema GTK\n'
+    printf '        %s\n' "$(printf '%s' "$brave_check" | tr '\n' ' ')"
+    printf '        cierra Brave y ejecuta: brave-theme apply\n'
+  fi
+fi
+
 check_file "$CONFIG/polybar/modules/resize.ini"
 check_file "$CONFIG/polybar/variants/reference/modules/resize.ini"
 check_file "$CONFIG/polybar/modules/tray.ini"
@@ -110,7 +123,19 @@ check_file "$CONFIG/ranger/rc.conf"
 check_file "$CONFIG/ranger/rifle.conf"
 check_file "$CONFIG/ranger/scope.sh"
 check_file "$CONFIG/zathura/zathurarc"
-check_file "$HOME/.themes/Windows-10-Dark/index.theme"
+
+# Tema GTK activo: los Catppuccin viven en /usr/share/themes (no en ~/.themes).
+gtk_theme="catppuccin-mocha-black"
+icon_theme="Catppuccin-Mocha"
+gtk_env="$CONFIG/luc-workspace/gtk.env"
+if [ -f "$gtk_env" ]; then
+  gtk_theme=$(sed -n 's/^GTK_THEME=//p' "$gtk_env" | head -1)
+  icon_theme=$(sed -n 's/^ICON_THEME=//p' "$gtk_env" | head -1)
+  gtk_theme="${gtk_theme:-catppuccin-mocha-black}"
+  icon_theme="${icon_theme:-Catppuccin-Mocha}"
+fi
+check_file "/usr/share/themes/$gtk_theme/index.theme"
+check_file "/usr/share/icons/$icon_theme/index.theme"
 check_file "$CONFIG/gtk-3.0/settings.ini"
 check_file "$CONFIG/vlc/vlcrc"
 check_file "$CONFIG/gtk-3.0/gtk.css"
@@ -129,6 +154,26 @@ if [ -f "$CONFIG/vlc/vlcrc" ]; then
   else
     printf '  [MAL] VLC: paleta oscura desactivada (falta qt-dark-palette=1)\n'
   fi
+fi
+
+if [ -f "$CONFIG/dunst/dunstrc" ] && [ -f "$CONFIG/sxhkd/sxhkdrc" ]; then
+  if grep -qiE '^[[:space:]]*close[[:space:]]*=[[:space:]]*ctrl[[:space:]]*\+[[:space:]]*space' \
+       "$CONFIG/dunst/dunstrc" &&
+     grep -qE '^[[:space:]]*ctrl[[:space:]]*\+[[:space:]]*space' \
+       "$CONFIG/sxhkd/sxhkdrc"; then
+    printf '  [MAL] dunst usa ctrl+space, en conflicto con sxhkd\n'
+  else
+    printf '  [OK] dunst y sxhkd no comparten ctrl+space\n'
+  fi
+fi
+
+# ─── Miniaturas ───
+print_header "Miniaturas (ranger/ytwatch)"
+check_file "/usr/bin/ueberzugpp"
+check_file "/usr/bin/ueberzug"
+check_exec "$HOME/.local/bin/ueberzug"
+if command -v ytwatch >/dev/null 2>&1; then
+  check_exec "$HOME/.local/bin/ueberzugpp"
 fi
 
 # ─── Servicios ───

@@ -1,34 +1,29 @@
 #!/usr/bin/env bash
-# lib/ytwatch.sh — buscador TUI de YouTube (binario + miniaturas con ueberzugpp).
+# lib/ytwatch.sh — buscador TUI de YouTube.
 #
 # yt-dlp sigue siendo el motor de búsqueda y mpv el reproductor: ytwatch es
 # una capa TUI sobre ellos, así que depende del binario oficial de yt-dlp
 # que instala lib/music.sh en ~/.local/bin.
+#
+# Las miniaturas (ueberzugpp) se instalan aparte en lib/previews.sh: así
+# `--no-ytwatch` no deja ranger sin previews.
 
 # Se puede omitir el bloque con --no-ytwatch.
 INSTALL_YTWATCH="${INSTALL_YTWATCH:-yes}"
 
-# Versiones fijadas para instalaciones reproducibles. Para actualizar en
-# una máquina existente: ytwatch-check / ytwatch-update.
-YTWATCH_VERSION="v0.3.0"
-# SHA-256 del tarball amd64 (checksums.txt de la propia release).
-YTWATCH_SHA256="8634951408637c63cf623fd7f6c53b2588b2e9baed687f64565bcc9e2d624560"
-
-UEBERZUGPP_VERSION="2.9.10"
-# Build Debian 13 del proyecto (OBS build service, repo home:justkidding).
-# Se baja el .deb directo: NO se añade ningún repositorio APT.
-UEBERZUGPP_SHA256="6c68dfbc2dc2f4a29376dd9e6a3b10e95e1f26e5a9bf2e37bcd026f8f2002aa3"
+# Política: última estable de GitHub + checksums.txt; fallback fijo
+# verificado si el release falla o no se puede comprobar.
+YTWATCH_REPO="geovannewashington/ytwatch"
+YTWATCH_FALLBACK_VERSION="v0.3.0"
+YTWATCH_FALLBACK_SHA256="8634951408637c63cf623fd7f6c53b2588b2e9baed687f64565bcc9e2d624560"
+YTWATCH_VERSION="$YTWATCH_FALLBACK_VERSION"
 
 YTARCH="amd64"
 
 ytwatch_download_tarball_url() {
-  printf 'https://github.com/geovannewashington/ytwatch/releases/download/%s/ytwatch_%s_linux_%s.tar.gz' \
-    "$YTWATCH_VERSION" "${YTWATCH_VERSION#v}" "$YTARCH"
-}
-
-ueberzugpp_deb_url() {
-  printf 'https://download.opensuse.org/repositories/home:/justkidding/Debian_13/amd64/ueberzugpp_%s_%s.deb' \
-    "$UEBERZUGPP_VERSION" "$YTARCH"
+  local version="${1:-$YTWATCH_VERSION}"
+  printf 'https://github.com/%s/releases/download/%s/ytwatch_%s_linux_%s.tar.gz' \
+    "$YTWATCH_REPO" "$version" "${version#v}" "$YTARCH"
 }
 
 install_ytwatch() {
@@ -39,13 +34,13 @@ install_ytwatch() {
 
   if dry_run; then
     section "Configurando ytwatch (buscador TUI de YouTube)"
-    log "[dry-run] descargar $(ytwatch_download_tarball_url) (SHA-256 verificado)"
+    log "[dry-run] resolver última estable de $YTWATCH_REPO; checksums.txt; fallback $YTWATCH_FALLBACK_VERSION (SHA-256)"
+    log "[dry-run] descargar $(ytwatch_download_tarball_url) si es la última"
     log "[dry-run] instalar ~/.local/bin/ytwatch 0755 (usuario)"
     log "[dry-run] instalar ~/.local/bin/ytwatch-{check,update} 0755 (usuario)"
     log "[dry-run] render ~/.config/ytwatch/config.toml desde templates/ytwatch"
-    log "[dry-run] descargar $(ueberzugpp_deb_url) (SHA-256 verificado) y 'sudo dpkg -i'"
-    log "[dry-run] si dpkg falla por dependencias: apt-get -y -f install"
     log "[dry-run] instalar ~/.local/bin/ueberzugpp (wrapper de offset para Herdr)"
+    log "[dry-run] las miniaturas (ueberzugpp) se instalan en lib/previews.sh"
     return 0
   fi
 
@@ -53,7 +48,6 @@ install_ytwatch() {
   install_ytwatch_tools
   install_ytwatch_binary
   install_ytwatch_config
-  install_ueberzugpp
   install_ytwatch_overlay
   ok "ytwatch listo: escribe ytwatch en una kitty (audio por defecto)"
   info "Estado y actualizaciones: ytwatch-check · ytwatch-update"
@@ -117,38 +111,43 @@ install_ytwatch_binary() {
   local home="$TARGET_HOME"
   local dir="$home/.local/bin"
   local bin="$dir/ytwatch"
-  local want="${YTWATCH_VERSION#v}"
-  local installed
+  local installed latest want fallback
 
   make_user_dir "$dir"
-
-  installed=$(ytwatch_installed_version)
-  if [[ "$installed" == "$want" ]]; then
-    info "ytwatch ya instalado: $installed (no se descarga de nuevo)"
-    return 0
-  fi
-  if [[ -n "$installed" ]]; then
-    # Nunca retroceder: si la instalada es más nueva que la fijada, se respeta.
-    if [[ "$(printf '%s\n%s\n' "$installed" "$want" | sort -V | tail -1)" == "$installed" ]]; then
-      info "ytwatch instalado ($installed) es más nuevo que el fijado ($want); no se toca"
-      return 0
-    fi
-    info "ytwatch instalado: $installed; el repo fija $want"
-  fi
+  installed=$(ytwatch_installed_version 2>/dev/null || true)
 
   if ! cmd_exists curl; then
     warn "curl no está instalado; ytwatch no se puede descargar"
     return 0
   fi
 
-  if ! fetch_ytwatch_tarball; then
+  latest=$(latest_github_tag "$YTWATCH_REPO" 2>/dev/null || true)
+  fallback="$YTWATCH_FALLBACK_VERSION"
+  want="${latest:-$fallback}"
+
+  if [[ -n "$installed" ]] && version_ge "$installed" "${want#v}"; then
+    if [[ "$installed" == "${want#v}" ]]; then
+      info "ytwatch ya instalado: $installed (última estable: $want)"
+    else
+      info "ytwatch instalado ($installed) es más nuevo que la última ($want); no se toca"
+    fi
+    return 0
+  fi
+
+  info "ytwatch: última estable ${want}; instalada ${installed:-ninguna}"
+  if [[ -n "$latest" ]] && fetch_ytwatch_tarball "$latest"; then
+    YTWATCH_VERSION="$latest"
+  elif [[ "$fallback" != "$latest" ]] && fetch_ytwatch_tarball "$fallback"; then
+    warn "ytwatch $want no se pudo verificar/descargar; se usa el fallback $fallback"
+    YTWATCH_VERSION="$fallback"
+  else
     warn "Sin binario nuevo de ytwatch; queda ${installed:-ninguno}"
     return 0
   fi
-  installed=$(ytwatch_installed_version)
 
-  if ! "$YT_TMP_DIR/ytwatch" --version >/dev/null 2>&1; then
-    warn "El binario descargado no arranca; no se instaló nada"
+  installed=$(ytwatch_installed_version 2>/dev/null || true)
+  if ! run_user "$YT_TMP_DIR/ytwatch" --version >/dev/null 2>&1; then
+    warn "El binario de ytwatch $YTWATCH_VERSION no arranca; no se instaló nada"
     rm -rf -- "$YT_TMP_DIR"
     return 0
   fi
@@ -157,36 +156,49 @@ install_ytwatch_binary() {
     backup_user_path "$bin"
   fi
   run_user install -m 0755 -- "$YT_TMP_DIR/ytwatch" "$bin"
-  installed=$(ytwatch_installed_version)
+  installed=$(ytwatch_installed_version 2>/dev/null || true)
 
   ok "ytwatch: ${installed:-desconocida} ($bin)"
   info "Para comprobar si hay versión nueva: ytwatch-check"
   rm -rf -- "$YT_TMP_DIR"
 }
 
-# Descarga el tarball a un tmpdir y verifica el SHA-256 fijado.
+# Descarga el tarball de una versión concreta y verifica su SHA-256.
+# La fallback usa el SHA fijado; la última estable usa checksums.txt.
 fetch_ytwatch_tarball() {
-  local tmpdir
+  local version="$1" tmpdir asset expected got
   # Como el usuario: si lo crea root (0700), curl no puede escribir.
   tmpdir=$(run_user mktemp -d "${TMPDIR:-/tmp}/ytwatch.XXXXXX")
   YT_TMP_DIR="$tmpdir"
+  asset="ytwatch_${version#v}_linux_${YTARCH}.tar.gz"
 
-  if ! run_user curl -fsSL --max-time 180 -o "$tmpdir/tarball.tar.gz" "$(ytwatch_download_tarball_url)"; then
+  if ! run_user curl -fsSL --max-time 300 -o "$tmpdir/tarball.tar.gz" \
+       "$(ytwatch_download_tarball_url "$version")"; then
     rm -rf -- "$tmpdir"
-    warn "Fallo descargando ytwatch $YTWATCH_VERSION"
+    warn "Fallo descargando ytwatch $version"
     return 1
   fi
 
-  local got
-  got=$(sha256sum "$tmpdir/tarball.tar.gz" 2>/dev/null | awk '{print $1}')
-  if [[ "$got" != "$YTWATCH_SHA256" ]]; then
-    warn "Checksum de ytwatch no coincide (esperado $YTWATCH_SHA256, obtenido ${got:-ninguno}); se descarta"
+  if [[ "$version" == "$YTWATCH_FALLBACK_VERSION" ]]; then
+    expected="$YTWATCH_FALLBACK_SHA256"
+  else
+    expected=$(github_release_checksum "$YTWATCH_REPO" "$version" "checksums.txt" "$asset" || true)
+    if [[ -z "$expected" ]]; then
+      warn "ytwatch $version no publica checksum para $asset; se descarta"
+      rm -rf -- "$tmpdir"
+      return 1
+    fi
+  fi
+
+  got=$(sha256_file "$tmpdir/tarball.tar.gz")
+  if [[ "$got" != "$expected" ]]; then
+    warn "Checksum de ytwatch $version no coincide (esperado $expected, obtenido ${got:-ninguno}); se descarta"
     rm -rf -- "$tmpdir"
     return 1
   fi
 
   if ! tar xzf "$tmpdir/tarball.tar.gz" -C "$tmpdir"; then
-    warn "El tarball de ytwatch no se pudo extraer"
+    warn "El tarball de ytwatch $version no se pudo extraer"
     rm -rf -- "$tmpdir"
     return 1
   fi
@@ -201,64 +213,4 @@ install_ytwatch_config() {
   backup_user_path "$dst"
   install_template_user 0644 "$PROJECT_ROOT/templates/ytwatch/config.toml.in" "$dst"
   ok "Config: $dst"
-}
-
-# Versión del paquete ueberzugpp instalado (vacía si no está).
-ueberzugpp_installed_version() {
-  dpkg-query -W -f='${Version}' ueberzugpp 2>/dev/null || true
-}
-
-# Miniaturas: binario ueberzugpp vía .deb directo del proyecto (sin añadir
-# repositorios). dpkg usa el sudo normal del instalador; si faltan
-# dependencias, apt-get -f las resuelve de los repos oficiales de Debian 13.
-install_ueberzugpp() {
-  local installed rc=0 tmp got
-
-  installed=$(ueberzugpp_installed_version)
-  if [[ -n "$installed" ]] && dpkg --compare-versions "$installed" ge "$UEBERZUGPP_VERSION"; then
-    info "ueberzugpp ya instalado: $installed (no se toca)"
-    return 0
-  fi
-  if [[ -n "$installed" ]]; then
-    info "ueberzugpp instalado: $installed; el repo fija $UEBERZUGPP_VERSION"
-  fi
-
-  tmp=$(mktemp "${TMPDIR:-/tmp}/ueberzugpp.XXXXXX.deb")
-  if ! curl -fsSL --max-time 180 -o "$tmp" "$(ueberzugpp_deb_url)"; then
-    warn "No se pudo descargar el .deb de ueberzugpp (ytwatch queda sin miniaturas)"
-    warn "Reintenta con: ytwatch-update --ueberzugpp"
-    rm -f -- "$tmp"
-    return 0
-  fi
-
-  got=$(sha256sum "$tmp" 2>/dev/null | awk '{print $1}')
-  if [[ "$got" != "$UEBERZUGPP_SHA256" ]]; then
-    warn "Checksum de ueberzugpp no coincide (esperado $UEBERZUGPP_SHA256, obtenido ${got:-ninguno}); NO se instala"
-    rm -f -- "$tmp"
-    return 0
-  fi
-
-  # El paquete legado `ueberzug` (Python) es dueño de /usr/bin/ueberzug y
-  # choca con el shim que trae ueberzugpp (drop-in). Se retira antes:
-  # el shim mantiene el comando para ranger (preview_images_method
-  # ueberzug) y en Debian 13 no arrastra dependientes.
-  if dpkg-query -W -f='${Status}' ueberzug 2>/dev/null | grep -q 'install ok installed'; then
-    info "Retirando ueberzug legado (ueberzugpp instala el shim /usr/bin/ueberzug)"
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get -y remove ueberzug ||
-      warn "No se pudo retirar ueberzug; dpkg puede fallar por el binario en conflicto"
-  fi
-
-  if ! run_root dpkg -i "$tmp"; then
-    info "dpkg pidió dependencias; apt-get -f las resuelve"
-    run_root env DEBIAN_FRONTEND=noninteractive apt-get -y -f install || rc=1
-  fi
-  rm -f -- "$tmp"
-
-  installed=$(ueberzugpp_installed_version)
-  if [[ "$rc" -eq 0 && "$installed" == "$UEBERZUGPP_VERSION" ]]; then
-    ok "ueberzugpp: $installed (miniaturas activas)"
-  else
-    warn "ueberzugpp no quedó instalado; ytwatch funciona sin miniaturas"
-    warn "Revisa el log y reintenta con: ytwatch-update --ueberzugpp"
-  fi
 }

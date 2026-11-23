@@ -38,7 +38,9 @@
     max_icon_size = 64
     icon_path = /usr/share/icons/Papirus/16x16/status/:/usr/share/icons/Papirus/16x16/devices/
     line_height = 0
-    close = ctrl+space
+    # ctrl+space pertenece a sxhkd (flotante/tiled, ADR-106); si dunst
+    # intenta capturarlo recibe BadAccess y ensucia session.log.
+    close = ctrl+period
     close_all = ctrl+shift+space
     context = ctrl+shift+period
 

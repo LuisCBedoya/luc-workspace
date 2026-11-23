@@ -13,6 +13,16 @@ Detalle de instalación, hardware, backups y limitaciones. El
   driver propietario; con Secure Boot desactivado se instala si hay GPU
   NVIDIA. `--nvidia` permite forzarlo.
 
+## Reproducibilidad
+
+La reproducibilidad es **funcional**: mismo escritorio, ajustes y temas,
+no versiones idénticas. Las herramientas externas (`ueberzugpp`, Herdr,
+ytwatch, Nerd Font) se resuelven a su última estable; si fallan, se usa
+el fallback fijado/vendorizado con SHA. `zathura-pdf-mupdf` queda fijado
+por compatibilidad con MuPDF de Debian 13. opencode es externo: el repo
+deja su tema y `cli.json` listos. Detalle en
+[`docs/reproducibility.md`](reproducibility.md).
+
 ## Qué hace el instalador
 
 1. **Detección**: Debian 13 y x86_64 antes de pedir `sudo`; después VM, CPU,
@@ -28,8 +38,9 @@ Detalle de instalación, hardware, backups y limitaciones. El
 4. **Paquetes**: base, Xorg, cadena de compilación (make, gcc, g++, cmake,
    meson, ninja, autotools), escritorio, audio/códecs, cámara,
    almacenamiento, red, fuentes, firmware, microcódigo y GPU.
-5. **Fuente**: descarga JetBrainsMono Nerd Font 3.5.1, verifica SHA-256 y
-   ejecuta `fc-cache`. Si falla, usa JetBrains Mono o monospace y avisa.
+5. **Fuente**: descarga la última estable de JetBrainsMono Nerd Font,
+   verifica su `SHA-256.txt` y ejecuta `fc-cache`; si falla, usa la
+   fallback 3.5.1. Si tampoco, usa JetBrains Mono o monospace y avisa.
 6. **Configuración**: renderiza bspwm, sxhkd, polybar, dunst, rofi, kitty
    y xsettingsd con la paleta activa (Mocha Black por defecto), el CSS de
    GTK y los defaults de Thunar; instala `.xinitrc`, wallpaper,
@@ -38,7 +49,9 @@ Detalle de instalación, hardware, backups y limitaciones. El
    con backup previo.
 8. **Verificación**: comprueba binarios, ficheros, módulos de polybar,
    placeholders, permisos, propiedad del home, servicios, versiones y
-   sintaxis POSIX de los binarios instalados.
+   sintaxis POSIX de los binarios instalados. Los fallos obligatorios
+   abortan con el resumen visible; las miniaturas (`ueberzugpp`) son
+   opcionales y solo avisan.
 9. **Autoremove**: después de verificar, marca la cadena de compilación como
    manual y ejecuta `apt-get -y autoremove` (sin `--purge`). Si falla, avisa
    y continúa; nunca deja el sistema a medias.
@@ -293,13 +306,18 @@ Incluido:
 - **yt-play** para audio o vídeo de YouTube/YouTube Music con búsqueda en
   fzf y miniatura; `mpv` + `yt-dlp` oficial en `~/.local/bin`.
 - **ytwatch** (opcional, `--no-ytwatch` para saltarlo): buscador TUI de
-  YouTube con miniaturas (`ueberzugpp`), filtros, cola y descargas;
-  usa el mismo yt-dlp oficial y mpv. Actualizable con `ytwatch-check` /
-  `ytwatch-update`.
+  YouTube con miniaturas, filtros, cola y descargas; usa el mismo yt-dlp
+  oficial y mpv. Las miniaturas (`ueberzugpp`) se instalan siempre,
+  también con `--no-ytwatch`, porque ranger usa el mismo backend.
+  Actualizable con `ytwatch-check` / `ytwatch-update`.
 - **Herdr** (TUI de terminal): se instala en `~/.local/bin`; se abre
   escribiendo `herdr` en kitty. Pestañas y panes con `herdr-close`
   (Alt+Q cierra pane → pestaña); ranger y ytwatch muestran sus previews
   reales dentro de sus panes.
+- **opencode**: en dark usa el tema custom `mocha-black` (Catppuccin con
+  `background.raised` en mantle/crust) y en light el built-in
+  `catppuccin`. `install.sh` deja `~/.config/opencode/cli.json` y el
+  tema en `~/.config/opencode/themes/`; `theme-mode` los mantiene.
 - **Avisos de YouTube por dunst**: timer de usuario
   (`luc-workspace-yt-update-notify.timer`, 13:00 diario; si el PC estaba
   apagado, corre al encender) que
@@ -350,6 +368,29 @@ No incluido todavía:
 - Repositorio de dotfiles externo: las plantillas de este repo son la
   fuente de verdad.
 
+### Actualizar ueberzugpp
+
+El instalador intenta la **última estable** del build Debian 13 en OBS.
+Si el release falla, desaparece o no se puede descargar, usa el `.deb`
+vendorizado `vendor/ueberzugpp_2.9.11_amd64.deb` con su SHA-256 fijado.
+No se añade ningún repositorio APT. En una máquina ya instalada,
+actualízalo sin tocar el repo:
+
+```sh
+ytwatch-update --ueberzugpp
+```
+
+`ytwatch-update --ueberzugpp` también resuelve la última versión disponible
+en OBS, no solo la última de GitHub. `sudo ./install.sh` no degrada una
+versión instalada igual o más nueva. La primera instalación de
+`ueberzugpp` trae sus dependencias (libvips/OpenCV/GDAL; decenas de
+paquetes, unos 35 MB de descarga) y las resuelve con `apt-get install` del
+`.deb` local en una sola transacción; `dpkg -i` + `apt-get -f` queda solo
+como fallback. Para mover el fallback de futuras instalaciones, reemplaza
+el `.deb` de `vendor/`, actualiza versión/SHA en `lib/previews.sh` y haz
+commit (ver `vendor/README.md`). Si `ueberzugpp` no se puede instalar, el
+escritorio se instala completo: solo se pierden las miniaturas.
+
 ## Estructura del repositorio
 
 ```text
@@ -390,8 +431,11 @@ bin/ytdlp-rollback         Restaura la copia anterior de yt-dlp
 bin/music-ctl              Teclas multimedia del reproductor activo
 bin/ytwatch-check          Aviso de versión nueva (ytwatch/ueberzugpp, dunst)
 bin/ytwatch-update         Actualiza ytwatch o ueberzugpp (--ueberzugpp)
-lib/ytwatch.sh             Instalación de ytwatch y ueberzugpp con SHA-256
-lib/herdr.sh               Instalación de Herdr con SHA-256, config y preview_tag
+lib/versions.sh            Resolución de última estable y checksums de releases
+lib/previews.sh            ueberzugpp OBS latest + fallback vendorizado (ranger/ytwatch)
+lib/ytwatch.sh             ytwatch latest + checksums.txt, fallback v0.3.0
+lib/herdr.sh               Herdr latest + fallback v0.9.5, config y preview_tag
+vendor/                    .deb de fallback (ueberzugpp), NOTICE y README
 templates/bspwm/           bspwmrc.in, autostart.in, scripts/
 templates/sxhkd/           sxhkdrc.in
 templates/polybar/         config.ini.in, modules/, scripts/ y variants/
@@ -409,7 +453,7 @@ templates/vlc/             vlcrc (oscuro o claro según el modo)
 templates/zathura/         zathurarc.in
 templates/themes/          catppuccin-mocha-blue y catppuccin-latte-blue
 templates/fastfetch/       config.jsonc.in
-templates/opencode/        mocha-black.json (tema Catppuccin con #0d0d14)
+templates/opencode/        mocha-black.json (V2: base #0d0d14, raised mantle/crust)
 assets/fastfetch/          Neofet-{light,dark}.png (logos de fastfetch)
 templates/icons/           papirus-folders y carpetas cat-*
 templates/modprobe/        i915.conf y nvidia.conf
@@ -439,9 +483,9 @@ docs/                      Hardware y testing
   cliente de correo ni reproductores de música locales. El streaming de
   YouTube se hace con `yt-play` y, opcionalmente, `ytwatch` (TUI).
 - `/etc/brave/policies/managed/luc-workspace.json` apaga la telemetría de Brave y
-  fuerza SurfingKeys; los temas Catppuccin Mocha y Latte quedan instalados
-  (`normal_installed`) como opcionales. Brave usa «Usar GTK» y sigue el
-  tema del modo por `xsettingsd`.
+  fuerza SurfingKeys; los temas Catppuccin de la CWS **no** se instalan
+  por policy para no pisar «Usar GTK» (ADR-144). Brave usa «Usar GTK» y
+  sigue el tema del modo por `xsettingsd`.
 - Firefox, OpenH264 y sus policies/autoconfig se retiran en la migración.
 - Los atajos `Super+Shift+p/v/i/a` existen en `sxhkdrc` pero las apps
   (`pcmanfm`, `codium`, `ristretto`, `lxappearance`) no se

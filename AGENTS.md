@@ -215,12 +215,21 @@ El escritorio está terminado. No implementar todavía:
     el store de `theme-mode`. También ajusta `~/.config/opencode/cli.json` (dark
     `name=mocha-black` con `templates/opencode/mocha-black.json`, light
     `name=catppuccin`, con `mode` dark/light) y ejecuta `opencode
-    reload`; tampoco es plantilla. El tema de opencode va en formato
-    V2 (`base` + `dark.hue`) con `background.raised` `#0d0d14`/
-    `#1a1a24`/`#26262f`; un JSON V1 (`defs`/`theme`) se ignora sin
-    aviso. Cambiar entre temas conocidos recarga en caliente, pero un
-    archivo de tema **nuevo** exige reiniciar el TUI (la lista se lee
-    al arrancar).
+    reload`; tampoco es plantilla. `install_user_configs` crea/actualiza
+    `cli.json` durante la instalación conservando el resto de claves y
+    hace backup; `theme-mode` lo crea si falta (opencode instalado
+    después). `verify.sh` exige que `cli.json` tenga el `theme.name`/
+    `mode` del modo activo. El tema de opencode va en formato
+    V2 (`base` + `dark.hue`) con `background.base` `#0d0d14` y
+    `background.raised` `#08080d`/`#050509`/`#050509` (mantle/crust,
+    como el Catppuccin built-in), `border.base` `#1a1a24` (surface0) y
+    `@dialog.background.base` referenciando `$background.raised.base`.
+    No volver a poner surface0/surface1 (`#1a1a24`/`#26262f`) en
+    `background.raised`: el input y los paneles quedan más claros que en
+    light y rompen la uniformidad. Un JSON V1 (`defs`/`theme`) se ignora
+    sin aviso. Cambiar entre temas conocidos recarga en caliente, pero
+    un archivo de tema **nuevo** o una definición modificada exige
+    reiniciar el TUI (la lista y el JSON se leen al arrancar).
     `assets/fastfetch/Neofet-dark.png` debe llevar el disco `#0d0d14`
     (el de light se mantiene); `theme-mode` elige el logo por modo.
     `xsettingsd` publica `Net/ThemeName` y el resto de claves del tema
@@ -232,10 +241,12 @@ El escritorio está terminado. No implementar todavía:
     porque es una escritura de prefs): asegura `extensions.theme.id=""`,
     `extensions.theme.system_theme=1` y `browser.theme.color_scheme2=0`,
     y elimina `pack`, `user_color2` y `color_variant2`. Con Brave abierto
-    no se tocan las prefs; el wrapper lo reaplica al arrancar. Los dos
-    temas de la CWS van `normal_installed` en la policy (no
-    `force_installed`) como opcionales: el cambio de modo no depende de
-    ellos.
+    no se tocan las prefs; el wrapper lo reaplica al arrancar. Los temas
+    Catppuccin de la CWS **no** se instalan por policy: al instalarse,
+    Brave los aplica automáticamente y pisan «Usar GTK», rompiendo el
+    cambio en caliente (ADR-144). Si un perfil antiguo los tiene,
+    `brave-theme` limpia `extensions.theme` y desactiva sus IDs
+    (`extensions.settings.<id>.state=0`).
 
 21. **No commitear sin permiso.** No ejecutar `git commit` ni `git add`
     definitivo sin autorización explícita del usuario.
@@ -248,12 +259,13 @@ El escritorio está terminado. No implementar todavía:
     `/etc/brave/policies/managed/luc-workspace.json` apaga telemetría
     (P3A, stats ping, Web Discovery, Rewards, Wallet, News, Talk, VPN,
     Leo, metrics/crash, UKM, sugerencias y surveys) y fuerza por
-    `ExtensionSettings` SurfingKeys (`gfbliohnnapiefjpjlpjnehglfpaknnc`);
-    los temas oficiales Catppuccin Mocha
-    (`bkkmolkhemgaeaeggcmfbghljjjoofoh`) y Latte
-    (`jhjnalhegpceacdhbplhnakmkdliaddd`) quedan `normal_installed` (no
-    `force_installed`) como opcionales: el escritorio usa «Usar GTK» y no
-    depende de ellos. El helper `~/.local/bin/brave-theme`
+    `ExtensionSettings` SurfingKeys (`gfbliohnnapiefjpjlpjnehglfpaknnc`).
+    Los temas Catppuccin Mocha (`bkkmolkhemgaeaeggcmfbghljjjoofoh`) y
+    Latte (`jhjnalhegpceacdhbplhnakmkdliaddd`) **no** se instalan por
+    policy: al instalarse, Brave los aplica automáticamente y pisan
+    «Usar GTK», rompiendo el cambio en caliente (ADR-144). `brave-theme`
+    limpia `extensions.theme` y desactiva esos IDs si quedaron de una
+    instalación anterior. El helper `~/.local/bin/brave-theme`
     (`bin/brave-theme`) asegura en el `Preferences` del perfil, sin sudo,
     `extensions.theme.id=""`, `extensions.theme.system_theme=1` y
     `browser.theme.color_scheme2=0` (sistema), y elimina
@@ -380,12 +392,25 @@ El escritorio está terminado. No implementar todavía:
     `theme-mode`, regla 20b). EPP/balanceado queda fuera hasta decisión
     nueva.
 
-27. **ytwatch (ADR-109).** Buscador TUI opcional, por defecto ON con
-    `--no-ytwatch` para saltarlo. Versiones fijadas con SHA-256 en
-    `lib/ytwatch.sh`: binario de GitHub en `~/.local/bin` (usuario, sin
-    sudo) y `ueberzugpp` 2.9.10 por `.deb` directo del proyecto (nunca
-    añadir el repo OBS a APT; solo `dpkg -i` + `apt-get -f`). ytwatch
-    usa el yt-dlp oficial y mpv; `yt-play`, `ytdlp-{check,update,
+27. **ytwatch y previews (ADR-109, ADR-143, ADR-146).** Buscador TUI
+    opcional, por defecto ON con `--no-ytwatch` para saltarlo. El
+    binario de ytwatch vive en `lib/ytwatch.sh` (`~/.local/bin`, usuario,
+    sin sudo) y se resuelve a la última estable con `checksums.txt`;
+    fallback v0.3.0 con SHA. `ueberzugpp` vive en `lib/previews.sh`: se
+    intenta la última estable del build OBS y se cae al `.deb`
+    vendorizado `vendor/ueberzugpp_2.9.11_amd64.deb` con SHA si falla
+    (nunca añadir el repo OBS a APT). Se instala el `.deb` local con
+    `apt-get install -y --no-install-recommends --allow-unauthenticated
+    --allow-downgrades`, que resuelve las dependencias y configura el
+    paquete en una sola transacción; `dpkg -i` + `apt-get -f` queda solo
+    como fallback. `install_previews` se ejecuta siempre, también con
+    `--no-ytwatch`, porque ranger usa el mismo backend. No degrada una
+    versión instalada igual o más nueva. Para actualizar en una máquina
+    existente: `ytwatch-update --ueberzugpp` (resuelve la última de OBS).
+    Si `ueberzugpp` no queda instalado, `verify.sh` avisa pero **no
+    aborta**: es una mejora
+    opcional. ytwatch usa el yt-dlp oficial y mpv; `yt-play`,
+    `ytdlp-{check,update,
     rollback}` y las notificaciones dunst NO se retiran. mpv se instala
     con VA-API en la iGPU (`templates/mpv/`): `hwdec=vaapi`, salida
     EGL/Mesa y wrapper `~/.local/bin/mpv` que fuerza la iGPU salvo con
@@ -558,9 +583,10 @@ El escritorio está terminado. No implementar todavía:
     PDF queden dentro del borde de la columna; fuera de Herdr no cambia
     nada. No volver a chafa: el arte ANSI era muy pobre.
 
-33. **Herdr reproducible.** `lib/herdr.sh` instala **Herdr v0.9.5** desde
-    la release oficial en `~/.local/bin/herdr` (usuario, sin sudo) con
-    el SHA-256 fijado (`x86_64` `14d9e8…`, `aarch64` `17d753…`);
+33. **Herdr reproducible.** `lib/herdr.sh` instala la **última estable**
+    de la release oficial en `~/.local/bin/herdr` (usuario, sin sudo).
+    Si el último release falla o no se puede verificar, cae al fallback
+    v0.9.5 con SHA-256 fijado (`x86_64` `14d9e8…`, `aarch64` `17d753…`);
     `--no-herdr` lo omite. La release es un binario suelto, no un
     tarball. También instala `templates/herdr/preview_tag.py` en
     `~/.local/lib/luc-workspace/preview_tag.py` (0644) para que los wrappers
@@ -574,6 +600,21 @@ El escritorio está terminado. No implementar todavía:
     `~/.local/bin/herdr` en `backup_existing_configs`. No hay atajo de
     lanzamiento: se escribe `herdr` en kitty y `Super+Return` sigue
     abriendo kitty.
+
+34. **Política de versiones.** La reproducibilidad es **funcional**, no
+    bit a bit: mismos ajustes, temas y comportamiento, no versiones
+    idénticas. La configuración, los temas y los scripts van fijados en
+    el repo por commit/tag. Las herramientas externas se instalan en su
+    **última estable** al ejecutar `install.sh`: `ueberzugpp` (build OBS),
+    Herdr, ytwatch y Nerd Font. Si el último release falla, desaparece o
+    no se puede verificar, se usa el fallback vendorizado/fijado con
+    SHA-256. `yt-dlp`, Oh My Zsh, Brave y los paquetes APT ya van a la
+    última estable. **Excepción:** `zathura-pdf-mupdf` queda fijado en
+    0.4.6 + SHA por compatibilidad con el MuPDF de Debian 13. opencode
+    es externo: el repo deja `cli.json` y el tema listos para cuando se
+    instale. `verify.sh` comprueba funcionamiento/coherencia, no
+    versiones exactas. Detalle en `docs/reproducibility.md`. No volver a
+    congelar una herramienta externa sin una razón de compatibilidad.
 
 ## Estructura relevante
 
@@ -600,9 +641,12 @@ El escritorio está terminado. No implementar todavía:
 | `lib/vlc.sh` | VLC con paleta oscura (`qt-dark-palette`) |
 | `lib/config.sh` | Configs de usuario, wallpaper y binarios de sesión |
 | `lib/fastfetch.sh` | fastfetch: config y logos `Neofet-{light,dark}.png` |
+| `lib/versions.sh` | Último tag estable de GitHub, checksums y comparación de versiones |
 | `lib/music.sh` | yt-dlp oficial, scripts de streaming, mpv VA-API/iGPU y teclas |
-| `lib/ytwatch.sh` | ytwatch (binario GitHub) y ueberzugpp (.deb OBS) con SHA-256 |
-| `lib/herdr.sh` | Herdr TUI: binario fijado, SHA-256, config reproducible y `preview_tag.py` |
+| `lib/previews.sh` | ueberzugpp OBS latest + fallback vendorizado (ranger/ytwatch) |
+| `lib/ytwatch.sh` | ytwatch latest + `checksums.txt`, fallback v0.3.0, config y wrappers |
+| `vendor/` | `.deb` de fallback (ueberzugpp) y su NOTICE/README |
+| `lib/herdr.sh` | Herdr latest + fallback v0.9.5, config reproducible y `preview_tag.py` |
 | `lib/brave.sh` | Brave: repo APT, policies, atajos y SurfingKeys |
 | `lib/verify.sh` | Verificación estática final |
 | `lib/theme.sh` | Paletas (Mocha Black, Latte), par de modos y render |
@@ -632,7 +676,7 @@ El escritorio está terminado. No implementar todavía:
 | `templates/zathura/` | zathurarc |
 | `templates/themes/` | `catppuccin-mocha-blue` y `catppuccin-latte-blue` |
 | `templates/fastfetch/` | `config.jsonc.in` (logo PNG y módulos) |
-| `templates/opencode/` | `mocha-black.json` (tema Catppuccin con superficies `#0d0d14`) |
+| `templates/opencode/` | `mocha-black.json` (Catppuccin V2: base `#0d0d14`, raised mantle/crust `#08080d`/`#050509`) |
 | `assets/fastfetch/` | `Neofet-{light,dark}.png` |
 | `templates/icons/` | `papirus-folders` y carpetas `cat-mocha-blue`/`cat-latte-blue` |
 | `bin/theme-mode` | Cambio de modo dark/light en caliente |
@@ -666,6 +710,7 @@ El escritorio está terminado. No implementar todavía:
 | `docs/usage.md` | Atajos, apps, tema y uso diario |
 | `docs/hardware.md` | Hardware de referencia y detección |
 | `docs/testing.md` | Plan de pruebas |
+| `docs/reproducibility.md` | Política de versiones, fallbacks y excepciones |
 | `assets/readme/` | Capturas y paleta usadas en el README |
 | `assets/wallpaper.png` | Wallpaper principal |
 | `assets/wallpaper-alt.png` | Wallpaper alternativo |
@@ -681,6 +726,10 @@ cd ~/luc-workspace
 
 # Sintaxis
 for f in install.sh lib/*.sh; do bash -n "$f" || exit 1; done
+
+# ueberzugpp fallback vendorizado (SHA-256 fijado en lib/previews.sh)
+test -f vendor/ueberzugpp_2.9.11_amd64.deb
+sha256sum vendor/ueberzugpp_2.9.11_amd64.deb
 for f in bin/desktop-safe bin/desktop-doctor bin/herdr-close \
   bin/luc-workspace-cpu-governor bin/luc-workspace-ufw \
   bin/luc-workspace-battery-limit bin/luc-workspace-fan-auto \
@@ -755,6 +804,7 @@ ytwatch-check
 theme-mode status
 theme-mode --no-reload light && theme-mode --no-reload dark
 brave-theme status
+brave-theme check   # 0 = «Usar GTK»; 1 = tema CWS/restos (cerrar Brave y apply)
 
 # Audio: política automática y autoswitch A2DP/HFP
 ~/.config/bspwm/scripts/audio-switch.sh auto
@@ -771,11 +821,14 @@ desktop-doctor --camera
 
 - El código está implementado y los checks estáticos pasan.
 - Renombrado a `luc-workspace` (2026-11-21): repo, sistema, rutas,
-  unidades, sudoers, variables y átomos X11. Versión 1.0.0. La migración
-  en vivo y la instalación desde cero en VM quedan pendientes.
-- Herdr (2026-11-17): `lib/herdr.sh` instala v0.9.5 con SHA-256 y el
-  config se renderiza desde `templates/herdr/config.toml.in`; `--no-herdr`
-  lo omite. La instalación desde cero en VM queda pendiente.
+  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.1
+  (2026-11-22: latest+fallback, Brave/opencode/ueberzugpp, política en
+  `docs/reproducibility.md`). La migración en vivo y la instalación desde
+  cero en VM quedan pendientes.
+- Herdr (2026-11-17; actualizado 2026-11-22): `lib/herdr.sh` instala la
+  última estable y cae a v0.9.5 con SHA-256; el config se renderiza desde
+  `templates/herdr/config.toml.in`; `--no-herdr` lo omite. La instalación
+  desde cero en VM queda pendiente.
 - Catppuccin (Mocha Black + Latte) implementado el 2026-11-02: dos paletas,
   `theme-mode`, temas GTK vendorizados y temas de iconos overlay. Pasan
   `bash -n`, `--dry-run` con ambas paletas y `theme-mode --no-reload` en un
@@ -829,11 +882,11 @@ desktop-doctor --camera
   Medido: 45,5 % → 17–18 % de CPU y 0 en la dGPU en un 720p. Brave
   confirma Video Decode hardware. El governor sigue `performance` en AC.
   Pendiente reiniciar ytwatch para el vídeo ya abierto.
-- Brave «Usar GTK» + xsettingsd (2026-11-14, ADR-115): policy con
-  Mocha/Latte `normal_installed` como opcionales, helper `bin/brave-theme`
-  sin sudo, `xsettingsd` en `autostart` y recarga por `SIGHUP` desde
-  `theme-mode`; falta `sudo ./install.sh` y validar el cambio en caliente
-  con Brave abierto.
+- Brave «Usar GTK» + xsettingsd (2026-11-14, ADR-115; temas CWS retirados
+  en ADR-144): policy con SurfingKeys y sin temas CWS, helper
+  `bin/brave-theme` sin sudo, `xsettingsd` en `autostart` y recarga por
+  `SIGHUP` desde `theme-mode`; falta `sudo ./install.sh` y validar el
+  cambio en caliente con Brave abierto.
 - UFW + Bluetooth (2026-11-14): módulos `ufw` y `bluetooth` en A/B,
   helper UFW con sudoers acotado, menú Bluetooth y sink de audio.
   Bluetooth arranca apagado (`AutoEnable=false`) y el servicio sigue
