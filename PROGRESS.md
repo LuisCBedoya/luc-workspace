@@ -2832,3 +2832,20 @@ UHD 630; sin servicios ni configuración extra.
   `udevadm` para activar la regla en el kernel (el agente no tiene sudo).
 - Validado: sintaxis, `brightnessctl -p set +5%/5%-`, archivos de regla
   y configs; no se pudo probar la escritura real sin root.
+
+### Barra B abajo y orden de brillo reproducible — 2026-11-22
+
+- Cambios manuales detectados en la barra:
+  - A: `brightness` antes de `pipewire` en `modules-right`.
+  - B: `brightness` en `modules-left` después de `fan`; fuera de
+    `modules-right`.
+  - `position=bottom`, `variant=referencia`.
+- Portado a `templates/polybar/config.ini.in` y
+  `templates/polybar/variants/reference/config.ini.in`.
+- `install_polybar` crea `position=bottom` y `variant=referencia` solo si
+  no existen; las elecciones posteriores se conservan.
+- `pipewire.ini` tenía mtime nuevo pero contenido idéntico; no hubo
+  cambio que portar.
+- AGENTS, ADR-148, docs/usage y docs/testing actualizados.
+- Validado: sintaxis `bash -n`/`sh -n`, `--dry-run` y comparación con
+  render limpio; no se ejecutó una instalación real nueva.

@@ -18,13 +18,15 @@ caliente mediante `xsettingsd` (ADR-115). **Bluetooth** está incluido
 como módulo polybar y menú de dispositivos (bluez ya estaba instalado);
 **UFW** se instala activo con `allow 22/tcp` y módulo de estado/control.
 
-La barra final es la de la config viva: **16 módulos** (**17 con backlight**),
-logo StumbleUpon
+Las dos barras se instalan. Por defecto queda activa la **B
+(referencia) abajo**; la A (actual) sigue disponible con
+`polybar-variant`. La barra A tiene **16 módulos** (**17 con
+backlight**), logo StumbleUpon
 (`U+F1A4`), escritorios dinámicos (solo los existentes), actualizaciones al inicio de la derecha, fecha al final,
 red unificada (`󰖩/󰈀 connected`, Ethernet prioritario, `󰖩 NoC` sin conexión), Bluetooth
 (`󰂯 off`/`on`, `󰂱 conectado`), UFW (`󰒃 on/off` + reglas), servicios systemd, gobernador
-de CPU (`󱃋 performance` con acento, `󰾆 powersave`; clic alterna + toast), volumen,
-batería y fecha; sin `dots`. Sin `xkeyboard`, `wlan`/`eth` separados ni
+de CPU (`󱃋 performance` con acento, `󰾆 powersave`; clic alterna + toast), brillo,
+volumen, batería y fecha; sin `dots`. Sin `xkeyboard`, `wlan`/`eth` separados ni
 fuente `DesktopLogo`.
 Fuentes: `font-1` 10 y `font-3` 13; logo en `font-0`. Separación compacta:
 `module-margin-left/right = 0`; `updates`/`polypomo` con padding 1/1;
@@ -33,13 +35,16 @@ nuevo marginal): `cpu` cierra en `%{O2}`, `governor` añade `%{O5}` y
 `pipewire` lleva `format-padding 2` en ambas variantes (en la B,
 `memory` padding 1).
 
-Hay una **variante B "referencia"** instalada aparte: 18 módulos (19 con
-backlight), escritorios dinámicos como círculos al centro; a la izquierda `date`, `day`,
-gobernador, `updates`,
-pomodoro y `der`; a la derecha `izq`, servicios, temperatura, RAM, CPU,
-red, Bluetooth, UFW, volumen y batería. Barra de 30 px con fondo del modo activo, fuentes 10/13 y flechas del color del
-bloque; temperatura conserva fondo en warning. Se cambia con
+La **variante B "referencia"** es la activa por defecto: 18 módulos (19
+con backlight), escritorios dinámicos como círculos al centro; a la
+izquierda `date`, `day`, gobernador, `fan`, brillo, pomodoro y `der`; a
+la derecha `izq`, `updates`, servicios, temperatura, RAM, CPU, red,
+Bluetooth, UFW, volumen, grabación y bandeja. Barra de 30 px abajo con
+fondo del modo activo, fuentes 10/13 y flechas del color del bloque;
+temperatura conserva fondo en warning. Se cambia con
 `~/.config/polybar/polybar-variant referencia` o `... actual`.
+`install_polybar` crea `position=bottom` y `variant=referencia` solo si
+esos archivos no existen; una elección posterior se conserva.
 
 El escritorio está terminado. No implementar todavía:
 
@@ -840,10 +845,11 @@ desktop-doctor --camera
 
 - El código está implementado y los checks estáticos pasan.
 - Renombrado a `luc-workspace` (2026-11-21): repo, sistema, rutas,
-  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.3
+  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.4
   (2026-11-22: latest+fallback, Brave/opencode/ueberzugpp, política en
-  `docs/reproducibility.md`, monocle sin bordes/sombra, brillo udev). La
-  migración en vivo y la instalación desde cero en VM quedan pendientes.
+  `docs/reproducibility.md`, monocle sin bordes/sombra, brillo udev, barra
+  B abajo). La migración en vivo y la instalación desde cero en VM quedan
+  pendientes.
 - Herdr (2026-11-17; actualizado 2026-11-22): `lib/herdr.sh` instala la
   última estable y cae a v0.9.5 con SHA-256; el config se renderiza desde
   `templates/herdr/config.toml.in`; `--no-herdr` lo omite. La instalación

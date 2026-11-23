@@ -16,6 +16,25 @@ install_polybar() {
   render_launch_script "$home"
   render_variant_script "$home"
 
+  # Estado inicial de la barra: B (referencia) abajo. Solo se crean si
+  # no existen; una elección posterior del usuario se conserva.
+  local position_file="$home/.config/polybar/position"
+  local variant_file="$home/.config/polybar/variant"
+  if [[ ! -f "$position_file" ]]; then
+    if dry_run; then
+      log "[dry-run] crear $position_file = bottom"
+    else
+      printf 'bottom\n' | run_user tee "$position_file" >/dev/null
+    fi
+  fi
+  if [[ ! -f "$variant_file" ]]; then
+    if dry_run; then
+      log "[dry-run] crear $variant_file = referencia"
+    else
+      printf 'referencia\n' | run_user tee "$variant_file" >/dev/null
+    fi
+  fi
+
   ok "polybar instalado"
 }
 

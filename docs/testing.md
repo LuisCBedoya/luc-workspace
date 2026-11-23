@@ -1910,3 +1910,22 @@ pendiente para quien quiera validar el ciclo completo.
   `verify.sh` no falla.
 - Si el usuario acaba de entrar al grupo `video`, hace falta cerrar
   sesión o reiniciar; `verify.sh` lo avisa sin abortar.
+
+### Barra B abajo y orden de brillo (2026-11-22, ADR-148)
+
+- `templates/polybar/config.ini.in`:
+  `modules-right = ... ufw @BRIGHTNESS_MODULE@ pipewire @BATTERY_MODULE@ ...`.
+- `templates/polybar/variants/reference/config.ini.in`:
+  `modules-left = date day governor fan @BRIGHTNESS_MODULE@ polypomo der`;
+  `brightness` no aparece en `modules-right`.
+- En una instalación limpia, `~/.config/polybar/position` debe ser
+  `bottom` y `~/.config/polybar/variant` debe ser `referencia`.
+- Si esos archivos ya existen con otros valores, `install_polybar` no los
+  toca.
+- `launch.sh` debe arrancar
+  `~/.config/polybar/variants/reference/config.ini` y poner
+  `bottom_padding=30` en bspwm.
+- `polybar-variant cycle` sigue rotando A arriba → A abajo → B arriba →
+  B abajo.
+- `pipewire.ini` de A y B debe coincidir con su plantilla (B con
+  `format-background`); el mtime no implica cambio de contenido.

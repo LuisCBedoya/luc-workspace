@@ -3996,3 +3996,29 @@ pero no escribir. `luc` sí está en el grupo `video`, pero el paquete
 - En hardware sin backlight, la regla y el módulo no se instalan.
 - Si el usuario cambia de grupo, el aviso de `verify.sh` recuerda cerrar
   sesión; el resto de la instalación no falla.
+
+## ADR-148 — Barra por defecto B abajo y orden de brillo
+
+**Contexto:** el usuario usa la variante **B (referencia)** con la barra
+**abajo** y movió `brightness` a la izquierda (después de `fan`); en la A
+lo puso antes de `pipewire`. Esos cambios estaban solo en
+`~/.config/polybar`, así que un `sudo ./install.sh` los sobrescribía.
+
+**Decisión:**
+1. `templates/polybar/config.ini.in` (A): `brightness` va antes de
+   `pipewire` en `modules-right`.
+2. `templates/polybar/variants/reference/config.ini.in` (B):
+   `brightness` va en `modules-left` después de `fan` y se quita de
+   `modules-right`.
+3. `install_polybar` crea `~/.config/polybar/position=bottom` y
+   `~/.config/polybar/variant=referencia` **solo si no existen**. Si el
+   usuario ya eligió otra variante/posición, se respeta.
+4. `polybar-variant cycle` sigue rotando A arriba → A abajo → B arriba →
+   B abajo; una instalación nueva nace en B abajo.
+5. Se actualizan AGENTS, PROGRESS, docs/usage y docs/testing.
+
+**Consecuencias:**
+- Una instalación limpia reproduce la barra B abajo y el orden de brillo.
+- Reinstalar no pisa una elección posterior de variante/posición.
+- El módulo `brightness` sigue siendo opcional: si no hay backlight, el
+  placeholder queda vacío y el resto de módulos no cambia.

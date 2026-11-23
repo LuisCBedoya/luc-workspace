@@ -105,14 +105,14 @@ Hay dos barras instaladas:
 
 - **actual**: la barra compacta de 16 módulos (17 con backlight): logo,
   workspaces 1-7, updates, servicios, pomodoro, temperatura, RAM, CPU,
-  red, Bluetooth, UFW, volumen, batería, fecha, grabación, bandeja del
-  sistema y brillo opcional. En monocle añade un contador `[N]` junto a los
+  red, Bluetooth, UFW, brillo, volumen, batería, fecha, grabación y
+  bandeja del sistema. En monocle añade un contador `[N]` junto a los
   workspaces.
 - **referencia**: variante de 18 módulos (19 con backlight). Workspaces
-  como círculos al centro; a la izquierda `date`, `day`, **gobernador**, `updates`,
-  pomodoro y `der`; a la derecha `izq`, servicios, temperatura, RAM, CPU, red,
-  Bluetooth, UFW, volumen, batería, grabación, bandeja del sistema y brillo
-  opcional.
+  como círculos al centro; a la izquierda `date`, `day`, **gobernador**,
+  `fan`, **brillo**, pomodoro y `der`; a la derecha `izq`, `updates`,
+  servicios, temperatura, RAM, CPU, red, Bluetooth, UFW, volumen,
+  batería, grabación y bandeja del sistema.
   En monocle, `[N]` junto a los círculos de workspaces.
   La bandeja usa XEmbed; Telegram/Discord modernos pueden no aparecer hasta
   añadir `snixembed`.
@@ -133,7 +133,9 @@ Cambiar de variante:
 abajo**. La posición se guarda en `~/.config/polybar/position`.
 
 La variante se guarda en `~/.config/polybar/variant` y `launch.sh` arranca
-la elegida al iniciar sesión.
+la elegida al iniciar sesión. Una instalación nueva crea
+`variant=referencia` y `position=bottom` si no existen; si ya existen, se
+respetan los valores actuales.
 
 Los atajos de apps que aún no están instaladas se dejan puestos para no
 cambiar la memoria muscular; no hacen nada hasta instalar la app. `codium`
