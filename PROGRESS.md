@@ -2889,3 +2889,17 @@ UHD 630; sin servicios ni configuración extra.
   nueva; `primary` y el resto de la barra siguen en `COLOR_BAR_ACCENT`.
 - Registrada en `base.sh`, `theme-mode` y `verify.sh`; ADR-151 y
   `docs/install.md` actualizados. Aplicado en vivo con `theme-mode`.
+
+### Wallpapers oficiales dark y light — 2026-11-22
+
+- Dark oficial: `~/Descargas/luc-wall-dark.jpg` → `assets/wallpaper.png`
+  (2688×1512 PNG, ~3,9 MB).
+- Light oficial: `~/Descargas/luc-light.jpg` → `assets/wallpaper-alt.png`
+  (2688×1512 PNG, ~1,9 MB, cielo azul sin retocar).
+- Se retiraron los Nothing del árbol; las rutas no cambiaron.
+- En vivo se respaldaron los fondos personales como
+  `local-dark.topo-azul.png` y `local-light.n1.png`, y se quitaron
+  `local-dark.png`/`local-light.png` para que se usen los oficiales.
+- Probado en las dos pantallas (eDP-1 1366×768 + HDMI-1 1920×1080):
+  `xwallpaper` muestra la imagen completa en cada una.
+- ADR-152 y docs actualizados. Pendiente: push (sin credenciales).

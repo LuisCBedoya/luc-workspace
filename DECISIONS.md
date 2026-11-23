@@ -4098,3 +4098,33 @@ acento de la barra.
   fs y `fan` siguen en lavanda.
 - Dark queda visualmente igual.
 - `verify.sh` acepta el nuevo hex porque entra en la lista de la paleta.
+
+## ADR-152 — Wallpapers oficiales dark y light
+
+**Contexto:** el usuario eligió dos imágenes definitivas: `luc-wall-dark.jpg`
+(topográfico azul, 2688×1512) y `luc-light.jpg` (cielo azul, 6000×3376).
+Hasta ahora el repo vendorizaba los Nothing y la máquina usaba fondos
+`local-*` generados a mano. El light seguía sin definir.
+
+**Decisión:**
+1. `assets/wallpaper.png` pasa a ser el topográfico oficial de dark,
+   reescalado a 2688×1512 en PNG de 8 bits.
+2. `assets/wallpaper-alt.png` pasa a ser el cielo oficial de light,
+   reescalado a 2688×1512 sin retocar color ni brillo.
+3. Se retiran los Nothing del árbol (quedan en el historial de git). Las
+   rutas de `wallpaper.sh`, `i3lock-fancy`, `verify.sh` y el instalador no
+   cambian: `wallpaper.png` = dark, `wallpaper-alt.png` = light.
+4. En esta máquina se respaldan y desactivan los `local-*` para que manden
+   los oficiales: `local-dark.topo-azul.png` y `local-light.n1.png` quedan
+   como respaldo manual, fuera de los nombres activos.
+5. Multi-monitor: `xwallpaper` sin `--output` aplica la imagen completa a
+   cada salida; con eDP-1 1366×768 y HDMI-1 1920×1080 ambas 16:9 no hay
+   recorte. No se implementa un fondo continuo entre pantallas.
+
+**Consecuencias:**
+- Una instalación nueva reproduce ambos fondos sin depender de archivos
+  locales.
+- `local-dark.png`/`local-light.png` siguen teniendo prioridad si el
+  usuario quiere volver a un fondo personal.
+- El light es un azul medio (brillo ~45 %), no un fondo claro de Latte; es
+  una decisión estética del usuario.

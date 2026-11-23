@@ -1969,3 +1969,15 @@ pendiente para quien quiera validar el ciclo completo.
 - El resto de módulos que usan `primary` (batería, resize, fs) no cambia.
 - Comprobar con `theme-mode light|dark` que los puntos y `governor`
   cambian de tono y el resto de la barra se mantiene.
+
+### Wallpapers oficiales dark/light (2026-11-22, ADR-152)
+
+- `assets/wallpaper.png` y `assets/wallpaper-alt.png` son 2688×1512 PNG
+  8 bits; el instalador los copia a `~/.local/share/wallpapers/`.
+- Sin `local-*.png` activos, `wallpaper.sh dark` debe mostrar el
+  topográfico y `wallpaper.sh light` el cielo.
+- Con dos salidas (`xrandr --listmonitors`), cada una muestra la imagen
+  completa; comprobar con captura de 3286×1080 en eDP-1 + HDMI-1.
+- `theme-mode light|dark` debe cambiar el fondo junto con la paleta.
+- Si el usuario vuelve a crear `local-dark.png`/`local-light.png`, estos
+  tienen prioridad y es el comportamiento esperado.

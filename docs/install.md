@@ -466,8 +466,8 @@ templates/modprobe/        alsa-fx504.conf (quirk ALC255)
 templates/recording/       recording.conf (modo de audio de la grabación)
 templates/display/         display.conf (layout y refresh de pantalla)
 templates/colors/          palette-mocha-black.sh y palette-latte.sh
-assets/wallpaper.png       Wallpaper por defecto de dark
-assets/wallpaper-alt.png   Wallpaper por defecto de light
+assets/wallpaper.png       Wallpaper oficial de dark (topográfico azul, 2688x1512)
+assets/wallpaper-alt.png   Wallpaper oficial de light (cielo azul, 2688x1512)
 docs/                      Hardware y testing
 ```
 

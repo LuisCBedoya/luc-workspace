@@ -302,7 +302,9 @@ y se commitea.
 ### Wallpapers por modo y fondos personales
 
 `wallpaper.sh apply` elige el fondo según el modo (`dark` → `wallpaper.png`,
-`light` → `wallpaper-alt.png`); `Super+Alt+W` alterna entre ambos. Si existen
+topográfico azul; `light` → `wallpaper-alt.png`, cielo azul); `Super+Alt+W`
+alterna entre ambos. Los assets oficiales son 2688×1512 y `xwallpaper` los
+aplica a cada salida por separado. Si existen
 estos archivos del usuario, **tienen prioridad**:
 
 ```
