@@ -1886,3 +1886,27 @@ bash -n bin/ytwatch-update bin/theme-mode
 **Excepción:** no se realiza la prueba de instalación real en VM con
 opencode antes/después (decisión del usuario). Queda como paso manual
 pendiente para quien quiera validar el ciclo completo.
+
+### Brillo del backlight sin sudo (2026-11-22, ADR-147)
+
+- `/etc/udev/rules.d/90-luc-workspace-backlight.rules` existe y contiene
+  `chgrp video` + `chmod g+w` sobre
+  `/sys/class/backlight/%k/brightness`.
+- `luc` pertenece al grupo `video`.
+- Como usuario, sin sudo:
+
+  ```sh
+  test -w /sys/class/backlight/intel_backlight/brightness
+  brightnessctl set 90%
+  brightnessctl set +5%
+  brightnessctl set 5%-
+  ```
+
+  `test -w` debe devolver 0 y `brightnessctl` cambiar el valor.
+- En polybar A y B: scroll cambia 10 %, clic izquierdo sube 5 % y clic
+  derecho baja 5 %.
+- `XF86MonBrightnessUp/Down` cambia 10 % sin sudo.
+- En un equipo sin `/sys/class/backlight/*`, la sección se omite y
+  `verify.sh` no falla.
+- Si el usuario acaba de entrar al grupo `video`, hace falta cerrar
+  sesión o reiniciar; `verify.sh` lo avisa sin abortar.

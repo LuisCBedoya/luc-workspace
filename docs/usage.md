@@ -81,7 +81,10 @@ de servicios muestra un engranaje y el número de servicios systemd activos;
 al hacer clic abre un menú para iniciarlos, detenerlos o reiniciarlos.
 El volumen llega como máximo a 120 % y sube/baja de 10 en 10. Las
 notificaciones críticas de dunst se cierran solas a los 10 s. El brillo
-aparece solo si el equipo tiene backlight y también cambia de 10 en 10.
+aparece solo si el equipo tiene backlight: scroll cambia 10 % y clic
+izquierdo/derecho ±5 %. Las teclas `XF86MonBrightnessUp/Down` también
+cambian 10 %. Todo funciona sin `sudo` gracias a la regla udev que da
+escritura al grupo `video`.
 Bluetooth arranca **apagado** (`AutoEnable=false`) y muestra `off`, `on`
 o el dispositivo conectado (con batería si la informa); al hacer clic se
 abre un menú para encender/apagar, conectar/desconectar, escanear,

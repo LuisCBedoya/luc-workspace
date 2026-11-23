@@ -742,6 +742,41 @@ add_user_groups() {
   done
 }
 
+# Regla udev para que el grupo video pueda escribir el brillo del
+# backlight. Sin ella, /sys/class/backlight/*/brightness es root:root 0644
+# y ni polybar ni brightnessctl ni las teclas XF86 pueden cambiarlo.
+install_backlight_udev() {
+  local rule=/etc/udev/rules.d/90-luc-workspace-backlight.rules
+  local src="$PROJECT_ROOT/templates/udev/90-luc-workspace-backlight.rules"
+
+  section "Brillo del backlight"
+
+  if ! compgen -G '/sys/class/backlight/*' >/dev/null; then
+    info "Sin backlight; se omite la regla udev"
+    return 0
+  fi
+  if [[ ! -f "$src" ]]; then
+    warn "Falta $src; no se instala la regla de brillo"
+    return 0
+  fi
+  if ! cmd_exists udevadm; then
+    warn "Falta udevadm; no se puede recargar la regla de brillo"
+    return 0
+  fi
+  if dry_run; then
+    log "[dry-run] instalar $rule (grupo video, g+w)"
+    log "[dry-run] udevadm control --reload-rules"
+    log "[dry-run] udevadm trigger --subsystem-match=backlight --action=add"
+    return 0
+  fi
+
+  backup_root "$rule"
+  run_root install -D -m 0644 "$src" "$rule"
+  run_root udevadm control --reload-rules
+  run_root udevadm trigger --subsystem-match=backlight --action=add
+  ok "Brillo: regla udev instalada (grupo video; requiere sesión nueva si acabas de entrar al grupo)"
+}
+
 install_packages() {
   apt_update
   install_base_packages
@@ -784,6 +819,7 @@ install_packages() {
 
   enable_base_services
   add_user_groups
+  install_backlight_udev
 }
 
 # Marca la cadena de compilación como manual para que `apt-get autoremove`

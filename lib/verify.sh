@@ -249,6 +249,17 @@ verify_install() {
     fi
   fi
 
+  # Brillo: regla udev y escritura del backlight por el grupo video.
+  if compgen -G '/sys/class/backlight/*' >/dev/null; then
+    if [[ ! -f /etc/udev/rules.d/90-luc-workspace-backlight.rules ]]; then
+      error "Falta la regla udev del brillo: /etc/udev/rules.d/90-luc-workspace-backlight.rules"
+      failures=$((failures + 1))
+    fi
+    if ! run_user sh -c 'for f in /sys/class/backlight/*/brightness; do [ -w "$f" ] || exit 1; done'; then
+      warn "Brillo: el usuario aún no puede escribir el backlight; cierra sesión/reinicia para aplicar el grupo video"
+    fi
+  fi
+
   # Todos los colores renderizados deben salir de la paleta activa.
   local -a palette_hex=()
   local color_var

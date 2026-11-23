@@ -1,0 +1,5 @@
+# Permite al grupo video escribir el brillo del backlight.
+# Lo usan polybar (internal/backlight), brightnessctl y las teclas
+# XF86MonBrightnessUp/Down. Sin esto, /sys/class/backlight/*/brightness
+# queda root:root 0644 y el usuario solo puede leerlo.
+SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"

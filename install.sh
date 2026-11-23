@@ -395,6 +395,7 @@ check_project_layout() {
     "$PROJECT_ROOT/templates/xsettingsd/xsettingsd.conf.in"
     "$PROJECT_ROOT/templates/vlc/vlcrc.in"
     "$PROJECT_ROOT/templates/modprobe/alsa-fx504.conf"
+    "$PROJECT_ROOT/templates/udev/90-luc-workspace-backlight.rules"
     "$PROJECT_ROOT/templates/xorg/20-modesetting.conf.in"
     "$PROJECT_ROOT/templates/modprobe/i915.conf"
     "$PROJECT_ROOT/templates/modprobe/nvidia.conf"

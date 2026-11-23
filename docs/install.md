@@ -286,7 +286,9 @@ Incluido:
   polybar, que solo aparece mientras grabas.
 - Pantalla siempre encendida: sin salvapantallas ni DPMS por inactividad.
   El bloqueo manual (`Super+Shift+L`) y el de suspensión siguen activos.
-- Brillo, volumen, portapapeles y agente polkit (`lxpolkit`).
+- Brillo, volumen, portapapeles y agente polkit (`lxpolkit`). El brillo
+  usa una regla udev (`/etc/udev/rules.d/90-luc-workspace-backlight.rules`)
+  para que el grupo `video` pueda escribir el backlight sin `sudo`.
 - PipeWire + WirePlumber + ALSA + pavucontrol.
 - FFmpeg, `libavcodec-extra`, GStreamer y VA-API/VDPAU.
 - Cámara UVC (`uvcvideo`, `v4l-utils`, `libcamera-tools` opcional).

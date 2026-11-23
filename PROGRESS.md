@@ -2813,3 +2813,22 @@ UHD 630; sin servicios ni configuración extra.
 - Pendiente: comprobación visual de Brave y kitty. Si Brave sigue
   mostrando un borde con la ventana tiled, será decoración propia de
   Brave (CSD/GTK), no bspwm/picom.
+
+### Brillo del backlight sin sudo — 2026-11-22
+
+- Diagnóstico: `/sys/class/backlight/intel_backlight/brightness` estaba
+  `root:root 0644`; `luc` está en `video`, pero el grupo no tenía `g+w`
+  y no existía regla udev. El módulo podía leer (mostraba 100 %) pero no
+  escribir; `brightnessctl` y las teclas XF86 fallaban igual.
+- `templates/udev/90-luc-workspace-backlight.rules`: `chgrp video` +
+  `chmod g+w` para `/sys/class/backlight/%k/brightness`.
+- `lib/packages.sh`: `install_backlight_udev` instala la regla tras
+  `add_user_groups`, recarga udev y dispara el subsistema backlight; se
+  omite sin backlight. `verify.sh` exige la regla y avisa si el usuario
+  aún no puede escribir (sesión nueva).
+- Módulo brightness A/B: scroll 10 % + clic izquierdo/derecho ±5 %.
+- Aplicado en la máquina: regla udev y clics en `~/.config/polybar`;
+  polybar reiniciado. Pendiente `sudo ./install.sh` o los comandos
+  `udevadm` para activar la regla en el kernel (el agente no tiene sudo).
+- Validado: sintaxis, `brightnessctl -p set +5%/5%-`, archivos de regla
+  y configs; no se pudo probar la escritura real sin root.

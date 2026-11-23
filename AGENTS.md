@@ -622,6 +622,18 @@ El escritorio está terminado. No implementar todavía:
     versiones exactas. Detalle en `docs/reproducibility.md`. No volver a
     congelar una herramienta externa sin una razón de compatibilidad.
 
+35. **Brillo del backlight.** `lib/packages.sh` instala
+    `/etc/udev/rules.d/90-luc-workspace-backlight.rules`, que da al grupo
+    `video` escritura (`g+w`) sobre
+    `/sys/class/backlight/*/brightness`; el usuario se añade a `video` en
+    `add_user_groups`. Sin esa regla el archivo queda `root:root 0644` y
+    el módulo `internal/backlight` de polybar, `brightnessctl` y las
+    teclas `XF86MonBrightnessUp/Down` solo pueden leer. El módulo A/B
+    usa scroll (10 %) y clic izquierdo/derecho (±5 %). `verify.sh` exige
+    la regla y avisa si el usuario aún no puede escribir (hace falta una
+    sesión nueva tras entrar al grupo). No usar `sudo` en el módulo ni en
+    las teclas de brillo.
+
 ## Estructura relevante
 
 | Archivo | Responsabilidad |
@@ -672,6 +684,7 @@ El escritorio está terminado. No implementar todavía:
 | `templates/lsd/` | config.yml e icons.yaml |
 | `templates/ranger/` | rc.conf, rifle.conf, previews y `ueberzug.in` (inset de Herdr) |
 | `templates/xorg/` | 20-modesetting.conf |
+| `templates/udev/` | Regla de escritura del backlight para el grupo `video` |
 | `templates/picom/` | picom.conf.in (libconfig: comentarios `#`) |
 | `templates/sudoers/` | Fragmentos de sudoers del gobernador, UFW, ventilador y energía (`@USER@`) |
 | `templates/systemd/` | `luc-workspace-cpu-governor.service`, avisos de YouTube y límite de batería |
@@ -827,10 +840,10 @@ desktop-doctor --camera
 
 - El código está implementado y los checks estáticos pasan.
 - Renombrado a `luc-workspace` (2026-11-21): repo, sistema, rutas,
-  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.2
+  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.3
   (2026-11-22: latest+fallback, Brave/opencode/ueberzugpp, política en
-  `docs/reproducibility.md`, monocle sin bordes/sombra). La migración en
-  vivo y la instalación desde cero en VM quedan pendientes.
+  `docs/reproducibility.md`, monocle sin bordes/sombra, brillo udev). La
+  migración en vivo y la instalación desde cero en VM quedan pendientes.
 - Herdr (2026-11-17; actualizado 2026-11-22): `lib/herdr.sh` instala la
   última estable y cae a v0.9.5 con SHA-256; el config se renderiza desde
   `templates/herdr/config.toml.in`; `--no-herdr` lo omite. La instalación

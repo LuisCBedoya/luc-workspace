@@ -3964,3 +3964,35 @@ externas y que la configuración/temas sigan fijados en el repo.
   mismas versiones; sí el mismo estado de configuración.
 - Para bit a bit harían falta snapshots de Debian/Brave/opencode y
   renunciar a actualizaciones; queda fuera de este proyecto.
+
+## ADR-147 — Brillo del backlight sin sudo
+
+**Contexto:** el módulo `brightness` de polybar mostraba el porcentaje pero
+no cambiaba nada, y las teclas `XF86MonBrightnessUp/Down` tampoco. En
+Debian 13, `/sys/class/backlight/intel_backlight/brightness` queda
+`root:root 0644`: `luc` puede leerlo (por eso el módulo muestra el valor)
+pero no escribir. `luc` sí está en el grupo `video`, pero el paquete
+`brightnessctl` no instala una regla udev que dé escritura al grupo.
+
+**Decisión:**
+1. Instalar
+   `/etc/udev/rules.d/90-luc-workspace-backlight.rules`:
+   `SUBSYSTEM=="backlight", ACTION=="add",` con `chgrp video` y
+   `chmod g+w` sobre `/sys/class/backlight/%k/brightness`.
+2. `lib/packages.sh` (`install_backlight_udev`) instala la regla después
+   de `add_user_groups`, recarga udev y dispara `--subsystem-match=backlight`.
+   Hace backup de la regla anterior y se omite si no hay backlight.
+3. El usuario se añade al grupo `video` (ya existía). Si acaba de entrar
+   al grupo, necesita cerrar sesión o reiniciar.
+4. El módulo `internal/backlight` de polybar A/B mantiene el scroll (10 %)
+   y añade clic izquierdo/derecho (±5 %) llamando a `brightnessctl -d`.
+   Las teclas XF86 siguen usando `brightnessctl` (10 %).
+5. `verify.sh` exige la regla si hay backlight y avisa (no aborta) si el
+   usuario aún no puede escribir el atributo.
+6. Nada de `sudo` en el módulo, en las teclas ni en `brightnessctl`.
+
+**Consecuencias:**
+- El brillo funciona sin contraseña y sin sudoers extra.
+- En hardware sin backlight, la regla y el módulo no se instalan.
+- Si el usuario cambia de grupo, el aviso de `verify.sh` recuerda cerrar
+  sesión; el resto de la instalación no falla.
