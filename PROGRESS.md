@@ -2864,3 +2864,18 @@ UHD 630; sin servicios ni configuración extra.
 - Docs/ADR-149 actualizados. Pendiente: cerrar Brave y ejecutar
   `sudo ./install.sh` en esta máquina; con Brave abierto se omiten
   atajos e interfaz.
+
+### polybar: `pipewire` con padding 1 — 2026-11-22
+
+- Cambio manual detectado comparando `~/.config/polybar` con las
+  plantillas: `pipewire` tenía `format-padding = 1` en A y B (antes 2).
+- Portado a `templates/polybar/modules/pipewire.ini.in` y
+  `templates/polybar/variants/reference/modules/pipewire.ini.in`.
+- `AGENTS.md` (regla de espaciados), ADR-150 y `docs/testing.md`
+  actualizados. Sin cambios en `lib/verify.sh`: solo comprueba que los
+  módulos existen.
+- El resto de diferencias vivo/plantilla eran placeholders renderizados;
+  `modules/polypomo.ini` (A) tenía mtime nuevo pero contenido idéntico.
+- Aplicado en vivo editando los dos módulos y reiniciando con
+  `~/.config/polybar/launch.sh`; `sudo ./install.sh` re-renderiza lo
+  mismo desde las plantillas.

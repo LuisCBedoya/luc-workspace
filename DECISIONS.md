@@ -4052,3 +4052,20 @@ duplicado y Brave podía elegir recargar en vez de cambiar de pestaña.
 - La barra de pestañas verticales no aparece por defecto; Alt+N puede
   activarla/desactivarla manualmente.
 - Una instalación nueva reproduce los atajos y la UI sin pasos manuales.
+
+## ADR-150 — `pipewire` con padding 1 en ambas variantes
+
+**Contexto:** el usuario ajustó a mano `format-padding` de `pipewire` de 2
+a 1 en las dos variantes. El repo lo tenía en 2 por el ajuste de
+espaciados de ADR-108, así que una instalación nueva lo habría revertido.
+
+**Decisión:** las plantillas `templates/polybar/modules/pipewire.ini.in` y
+`templates/polybar/variants/reference/modules/pipewire.ini.in` usan
+`format-padding = 1`, igual que el resto de módulos compactos. El volumen
+queda más cerca de `date`/`recording` sin tocar los demás espaciados
+(`cpu` `%{O2}`, `governor` `%{O5}`, `memory` B padding 1).
+
+**Consecuencias:**
+- Una instalación nueva reproduce el padding 1 en A y B.
+- `AGENTS.md` y `docs/testing.md` actualizados; el historial de
+  `PROGRESS.md` conserva la entrada antigua del padding 2.

@@ -1946,3 +1946,14 @@ pendiente para quien quiera validar el ciclo completo.
 - Con Brave cerrado, `sudo ./install.sh` escribe todo; con Brave abierto
   se omite y hay que repetir tras cerrarlo.
 - `verify.sh` comprueba los cuatro puntos de atajos y la UI.
+
+### polybar `pipewire` padding 1 (2026-11-22, ADR-150)
+
+- `templates/polybar/modules/pipewire.ini.in` y
+  `templates/polybar/variants/reference/modules/pipewire.ini.in` llevan
+  `format-padding = 1`.
+- Tras `sudo ./install.sh`, ambos `~/.config/polybar/modules/pipewire.ini`
+  y `~/.config/polybar/variants/reference/modules/pipewire.ini` deben
+  mostrar `format-padding = 1` y la barra reiniciarse con
+  `~/.config/polybar/launch.sh`.
+- `verify.sh` no comprueba el valor, solo la existencia del módulo.
