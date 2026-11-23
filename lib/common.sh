@@ -25,7 +25,7 @@ TARGET_GID="${TARGET_GID:-}"
 LOG_FILE="${LOG_FILE:-}"
 PROJECT_SLUG="${PROJECT_SLUG:-luc-workspace}"
 PROJECT_NAME="${PROJECT_NAME:-luc-workspace}"
-PROJECT_VERSION="${PROJECT_VERSION:-1.0.4}"
+PROJECT_VERSION="${PROJECT_VERSION:-1.0.5}"
 
 section() {
   printf '\n%s==> %s%s\n' "$C_BOLD$C_BLUE" "$*" "$C_RESET"

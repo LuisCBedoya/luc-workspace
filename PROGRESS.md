@@ -2849,3 +2849,18 @@ UHD 630; sin servicios ni configuración extra.
 - AGENTS, ADR-148, docs/usage y docs/testing actualizados.
 - Validado: sintaxis `bash -n`/`sh -n`, `--dry-run` y comparación con
   render limpio; no se ejecutó una instalación real nueva.
+
+### Brave: sin pestañas verticales, Alt+O/Alt+I — 2026-11-22
+
+- El perfil tenía Alt+O duplicado: siguiente pestaña (34016) y recargar
+  (34002). Se resolvió dejando Alt+O solo en siguiente; recargar queda
+  Ctrl+R/F5/BrowserRefresh.
+- `lib/brave.sh`: `Alt+KeyO`/`Alt+KeyI` entran en `drop` y se asignan a
+  34016/34017. `34002` pierde Alt+O.
+- `install_brave_minimal`: `vertical_tabs_enabled=False` y
+  `vertical_tabs_collapsed=False`; Alt+N sigue en 56215 como toggle.
+- `verify.sh` comprueba Alt+O en 34016, Alt+I en 34017, Alt+O fuera de
+  34002 y pestañas verticales desactivadas.
+- Docs/ADR-149 actualizados. Pendiente: cerrar Brave y ejecutar
+  `sudo ./install.sh` en esta máquina; con Brave abierto se omiten
+  atajos e interfaz.

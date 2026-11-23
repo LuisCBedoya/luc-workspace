@@ -863,14 +863,38 @@ PYCHK
   # Atajos nativos (solo si el perfil ya existe).
   local brave_prefs="$home/.config/BraveSoftware/Brave-Browser/Default/Preferences"
   if [[ -f "$brave_prefs" ]]; then
-    for combo in 'Control+KeyN' 'Control+KeyP' 'Alt+KeyQ' 'Alt+KeyO' 'Alt+KeyK' \
-                 'Alt+KeyN' 'Alt+Shift+KeyN' 'Control+Alt+KeyH' 'Control+Alt+KeyL' \
-                 'Alt+KeyH' 'Alt+KeyL'; do
+    for combo in 'Control+KeyN' 'Control+KeyP' 'Alt+KeyQ' 'Alt+KeyO' 'Alt+KeyI' \
+                 'Alt+KeyK' 'Alt+KeyN' 'Alt+Shift+KeyN' 'Control+Alt+KeyH' \
+                 'Control+Alt+KeyL' 'Alt+KeyH' 'Alt+KeyL'; do
       if ! grep -q "$combo" "$brave_prefs"; then
         error "Brave: falta el atajo $combo en Preferences"
         failures=$((failures + 1))
       fi
     done
+    local acc_bad
+    acc_bad=$(python3 - "$brave_prefs" <<'PYCHK' 2>/dev/null || printf 'Preferences ilegible\n'
+import json
+import sys
+
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+acc = data.get("brave", {}).get("accelerators", {})
+checks = (
+    ("Alt+O en pestaña siguiente (34016)", "Alt+KeyO" in acc.get("34016", [])),
+    ("Alt+I en pestaña anterior (34017)", "Alt+KeyI" in acc.get("34017", [])),
+    ("Alt+O fuera de recargar (34002)", "Alt+KeyO" not in acc.get("34002", [])),
+)
+for name, ok in checks:
+    if not ok:
+        print(f"{name}: no")
+PYCHK
+)
+    if [[ -n "$acc_bad" ]]; then
+      while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        error "Brave: atajo incorrecto: $line"
+        failures=$((failures + 1))
+      done <<<"$acc_bad"
+    fi
     # Interfaz minimalista: Brave reescribe Preferences en JSON compacto,
     # así que se comprueban los valores, no el texto.
     local bad
@@ -886,6 +910,7 @@ checks = (
     ("show_brave_news", ntp.get("show_brave_news"), False),
     ("show_side_panel_button", brave.get("show_side_panel_button"), False),
     ("always_hide_tab_close_button", tabs.get("always_hide_tab_close_button"), True),
+    ("vertical_tabs_enabled", tabs.get("vertical_tabs_enabled"), False),
     ("vertical_tabs_show_scrollbar", tabs.get("vertical_tabs_show_scrollbar"), False),
 )
 for name, got, want in checks:

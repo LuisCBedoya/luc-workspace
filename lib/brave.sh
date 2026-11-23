@@ -197,16 +197,19 @@ acc = brave.setdefault("accelerators", {})
 
 # Ctrl+N/Ctrl+P dejan de ser "ventana nueva"/"imprimir"; Alt+H deja de
 # abrir el historial (pasa a ser "panel izquierdo") y Alt+L queda libre.
-drop = ("Control+KeyN", "Control+KeyP", "Alt+KeyN", "Alt+KeyH", "Alt+KeyL")
+# Alt+O deja de recargar (pasa a pestaña siguiente) y Alt+I se reserva
+# para pestaña anterior.
+drop = ("Control+KeyN", "Control+KeyP", "Alt+KeyN", "Alt+KeyH", "Alt+KeyL",
+        "Alt+KeyO", "Alt+KeyI")
 for cid, keys in list(acc.items()):
     if isinstance(keys, list):
         acc[cid] = [k for k in keys if k not in drop]
 
 ours = {
-    "34016": ["Control+PageDown", "Control+KeyN"],  # pestaña siguiente
-    "34017": ["Control+PageUp", "Control+KeyP"],    # pestaña anterior
+    "34016": ["Control+PageDown", "Control+KeyN", "Alt+KeyO"],  # siguiente
+    "34017": ["Control+PageUp", "Control+KeyP", "Alt+KeyI"],    # anterior
     "34015": ["Control+KeyW", "Control+F4", "AppClose", "Alt+KeyQ"],  # cerrar
-    "34002": ["Control+KeyR", "F5", "BrowserRefresh", "Alt+KeyO"],    # recargar
+    "34002": ["Control+KeyR", "F5", "BrowserRefresh"],         # recargar sin Alt+O
     "40010": ["Control+KeyH"],                      # historial (sin Alt+H)
     "34014": ["Control+KeyT", "AppNew", "Alt+KeyK"],  # nueva pestaña
     "34000": ["Alt+Shift+KeyN"],                    # ventana nueva
@@ -230,7 +233,7 @@ with open(path + ".tmp", "w", encoding="utf-8") as fh:
 os.replace(path + ".tmp", path)
 PY
   run_root chown "$TARGET_USER:$TARGET_GROUP" "$prefs" 2>/dev/null || true
-  ok "Brave: atajos nativos (Ctrl+N/P, Alt+Q/O/K, Alt+H/L paneles)"
+  ok "Brave: atajos nativos (Ctrl+N/P, Alt+O/I pestañas, Alt+Q/K, Alt+H/L paneles)"
 }
 
 # Interfaz minimalista: NTP limpia, sin iconos ni barra de marcadores.
@@ -290,8 +293,9 @@ minimal = {
     "brave.show_screenshot_button": False,
     "brave.show_fullscreen_reminder": False,
     "browser.show_home_button": False,
-    # Pestañas verticales sobrias.
-    "brave.tabs.vertical_tabs_enabled": True,
+    # Pestañas horizontales por defecto (Alt+N sigue pudiendo activarlas).
+    "brave.tabs.vertical_tabs_enabled": False,
+    "brave.tabs.vertical_tabs_collapsed": False,
     "brave.tabs.vertical_tabs_show_scrollbar": False,
     "brave.tabs.vertical_tabs_show_toggle_button": False,
     "brave.tabs.always_hide_tab_close_button": True,

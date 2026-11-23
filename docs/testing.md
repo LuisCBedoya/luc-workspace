@@ -1929,3 +1929,20 @@ pendiente para quien quiera validar el ciclo completo.
   B abajo.
 - `pipewire.ini` de A y B debe coincidir con su plantilla (B con
   `format-background`); el mtime no implica cambio de contenido.
+
+### Brave sin verticales y Alt+O/Alt+I (2026-11-22, ADR-149)
+
+- `brave.accelerators`:
+  - `34016` (siguiente) contiene `Alt+KeyO`.
+  - `34017` (anterior) contiene `Alt+KeyI`.
+  - `34002` (recargar) no contiene `Alt+KeyO`; conserva `Ctrl+R`, `F5`
+    y `BrowserRefresh`.
+- `brave.tabs.vertical_tabs_enabled=false`; la barra vertical no aparece.
+  El instalador escribe `vertical_tabs_collapsed=false`, pero Brave puede
+  normalizarlo a `true` al arrancar con las verticales desactivadas, así
+  que `verify.sh` solo exige `vertical_tabs_enabled=false`.
+- `Alt+N` sigue en `56215` y puede reactivar las verticales.
+- El resto de atajos no cambia.
+- Con Brave cerrado, `sudo ./install.sh` escribe todo; con Brave abierto
+  se omite y hay que repetir tras cerrarlo.
+- `verify.sh` comprueba los cuatro puntos de atajos y la UI.

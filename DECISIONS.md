@@ -4022,3 +4022,33 @@ lo puso antes de `pipewire`. Esos cambios estaban solo en
 - Reinstalar no pisa una elección posterior de variante/posición.
 - El módulo `brightness` sigue siendo opcional: si no hay backlight, el
   placeholder queda vacío y el resto de módulos no cambia.
+
+## ADR-149 — Brave sin pestañas verticales y Alt+O/Alt+I
+
+**Contexto:** el usuario quiere Brave sin la barra de pestañas verticales y
+con Alt+O/Alt+I para siguiente/anterior pestaña. Alt+O estaba asignado a
+recargar en `brave.accelerators` (34002), así que el atajo manual quedaba
+duplicado y Brave podía elegir recargar en vez de cambiar de pestaña.
+
+**Decisión:**
+1. `install_brave_minimal` deja
+   `brave.tabs.vertical_tabs_enabled=False` (y escribe
+   `vertical_tabs_collapsed=False`; Brave puede normalizarlo a `true` al
+   arrancar con las verticales desactivadas, sin efecto visible).
+   `Alt+N` sigue en `56215` como toggle por si se quieren reactivar.
+2. `lib/brave.sh` añade `Alt+KeyO` y `Alt+KeyI` a la lista `drop` (se
+   quitan de cualquier comando) y los asigna a:
+   - `34016` (siguiente pestaña): `Alt+KeyO`
+   - `34017` (anterior pestaña): `Alt+KeyI`
+3. `34002` (recargar) queda en `Ctrl+R`, `F5` y `BrowserRefresh`, sin
+   `Alt+KeyO`.
+4. `verify.sh` comprueba que Alt+O no está en 34002, que Alt+I está en
+   34017 y que `vertical_tabs_enabled=False`.
+5. El resto de atajos no cambia. Con Brave abierto el instalador no toca
+   `Preferences`; hay que cerrarlo y volver a ejecutar.
+
+**Consecuencias:**
+- Alt+O cambia de pestaña y ya no recarga; recargar sigue en Ctrl+R/F5.
+- La barra de pestañas verticales no aparece por defecto; Alt+N puede
+  activarla/desactivarla manualmente.
+- Una instalación nueva reproduce los atajos y la UI sin pasos manuales.

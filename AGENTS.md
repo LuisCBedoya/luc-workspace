@@ -284,22 +284,25 @@ El escritorio está terminado. No implementar todavía:
     controles legacy siguen en azul Google.
     Los atajos nativos viven en `brave.accelerators` del perfil
     (`Preferences`): `lib/brave.sh` escribe Ctrl+N/P (pestañas,
-    quitándolos de ventana nueva/imprimir), Alt+Q cerrar, Alt+O
-    recargar, Alt+K nueva pestaña, Alt+N expandir/colapsar pestañas
-    verticales, Alt+Shift+N ventana nueva, Ctrl+Alt+L dividir con la
-    pestaña actual, Ctrl+Alt+H nueva vista dividida, y Alt+H/Alt+L para
-    saltar al panel izquierdo/derecho de la vista dividida (son
-    "panel anterior/siguiente", cíclicos). Alt+H ya no abre el
-    historial: queda solo Ctrl+H. IDs 34016/17/15/02, 34014, 56215,
-    34000, 34057, 56325, 39005 (panel anterior) y 39004 (panel
-    siguiente). Con Brave abierto ese paso se omite (se pide cerrarlo y
-    repetir). `verify.sh` exige las policies y los atajos.
+    quitándolos de ventana nueva/imprimir), **Alt+O pestaña siguiente**,
+    **Alt+I pestaña anterior**, Alt+Q cerrar, Alt+K nueva pestaña,
+    Alt+N alternar pestañas verticales (desactivadas por defecto),
+    Alt+Shift+N ventana nueva, Ctrl+Alt+L dividir con la pestaña actual,
+    Ctrl+Alt+H nueva vista dividida, y Alt+H/Alt+L para saltar al panel
+    izquierdo/derecho de la vista dividida (son "panel
+    anterior/siguiente", cíclicos). Alt+O **ya no recarga**: recargar
+    queda en Ctrl+R/F5/BrowserRefresh. Alt+H ya no abre el historial:
+    queda solo Ctrl+H. IDs 34016/17/15/02, 34014, 56215, 34000, 34057,
+    56325, 39005 (panel anterior) y 39004 (panel siguiente). Con Brave
+    abierto ese paso se omite (se pide cerrarlo y repetir). `verify.sh`
+    exige las policies y los atajos, incluido que Alt+O no esté en
+    recargar y que Alt+I esté en anterior.
     La config de SurfingKeys se genera en
     `~/.config/luc-workspace/surfingkeys.js` y se pega una vez a mano: la
     extensión no lee archivos locales sin native host. Mantiene el mapa
     heredado (`o` = búsqueda Google por el alias `go`, `O` = pestaña
     nueva, `b` = elegir pestaña, `H`/`L` = atrás/adelante). Los
-    `Alt+…` nativos (Alt+Q/O/H/K/N) los captura Brave antes que la
+    `Alt+…` nativos (Alt+Q/I/O/H/K/N) los captura Brave antes que la
     página, así que no se mapean en SurfingKeys: el historial de páginas
     queda en `<Alt-y>`. Los hints se pintan a 15px con
     `Hints.style(...)` y las variables `--sk-*` de `:root` (shadow
@@ -845,11 +848,11 @@ desktop-doctor --camera
 
 - El código está implementado y los checks estáticos pasan.
 - Renombrado a `luc-workspace` (2026-11-21): repo, sistema, rutas,
-  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.4
+  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.5
   (2026-11-22: latest+fallback, Brave/opencode/ueberzugpp, política en
   `docs/reproducibility.md`, monocle sin bordes/sombra, brillo udev, barra
-  B abajo). La migración en vivo y la instalación desde cero en VM quedan
-  pendientes.
+  B abajo, Brave sin verticales y Alt+O/I). La migración en vivo y la
+  instalación desde cero en VM quedan pendientes.
 - Herdr (2026-11-17; actualizado 2026-11-22): `lib/herdr.sh` instala la
   última estable y cae a v0.9.5 con SHA-256; el config se renderiza desde
   `templates/herdr/config.toml.in`; `--no-herdr` lo omite. La instalación

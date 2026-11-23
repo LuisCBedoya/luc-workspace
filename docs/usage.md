@@ -35,8 +35,9 @@ Atajos, variantes de la barra, apps y tema. El
 | `Alt+Tab` / `Alt+Shift+Tab` | siguiente / anterior ventana |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | siguiente / anterior escritorio (ADR-112) |
 | `Ctrl+N` / `Ctrl+P` (Brave) | siguiente / anterior pestaña (nativo) |
+| `Alt+O` / `Alt+I` (Brave) | siguiente / anterior pestaña |
 | `Alt+Q` / `Alt+K` (Brave) | cerrar / nueva pestaña |
-| `Alt+O` (Brave) | recargar |
+| `Ctrl+R` / `F5` (Brave) | recargar (Alt+O ya no recarga) |
 | `Alt+H` / `Alt+L` (Brave) | ir al panel izquierdo / derecho (vista dividida) |
 | `Alt+N` (Brave) | expandir/colapsar pestañas verticales |
 | `Alt+Shift+N` (Brave) | ventana nueva |
@@ -341,8 +342,11 @@ instalarse, Brave los aplica y pisan «Usar GTK», así que `Super+Alt+T`
 dejaría de cambiar Brave. Si quieres usar uno manualmente, ten en cuenta
 que dejará de seguir el tema del escritorio. Comprueba el estado con
 `brave-theme check` (`0` = GTK, `1` = tema CWS o restos). Los atajos
-nativos (`Ctrl+N/P`, `Alt+Q/O/K`, `Alt+H/L` para los paneles y `Alt+N` /
-`Alt+Shift+N`) se escriben en `brave.accelerators` del perfil (con Brave cerrado).
+nativos (`Ctrl+N/P`, `Alt+O/I` para pestañas, `Alt+Q/K`, `Alt+H/L` para
+los paneles y `Alt+N` / `Alt+Shift+N`) se escriben en
+`brave.accelerators` del perfil (con Brave cerrado).
+Las pestañas verticales están desactivadas por defecto; `Alt+N` sigue
+existiendo como toggle si quieres volver a activarlas.
 Chromium **no soporta `userChrome`/CSS de UI**:
 el aspecto es el del tema GTK y no replica el minimalismo que tenía
 Firefox; algunos controles legacy de Chromium siguen en azul Google.
@@ -355,7 +359,8 @@ quita la barra de marcadores.
 La interfaz va limpia (`lib/brave.sh` → `install_brave_minimal`): NTP sin
 reloj, estadísticas, noticias, Rewards, VPN, patrocinados ni fondos; sin
 iconos de Rewards/Wallet/Leo/Today/marcadores/sidebar/tab-search; pestañas
-verticales sin scrollbar ni botón de plegado y con la × oculta. Además la
+horizontales por defecto (si se activan verticales, sin scrollbar ni
+botón de plegado y con la × oculta). Además la
 NTP se sustituye por `/usr/share/luc-workspace/newtab.html`, un symlink a
 `~/.local/share/luc-workspace/newtab.html` (fondo liso del modo activo: Mocha
 Black en oscuro y Latte en claro, sin buscador ni sitios) con la policy
@@ -370,7 +375,7 @@ Ajustes → Advanced mode → editor → Save. No se puede automatizar: la
 extensión no lee archivos locales sin native host. Conserva el mapa de
 siempre: `o` (búsqueda Google, alias `go`), `O` (pestaña nueva), `b`
 (elegir pestaña), `H`/`L` (atrás/adelante) y `<Alt-y>` (historial). Los
-`Alt+Q/O/H/K/N` son nativos de Brave y no se mapean aquí.
+`Alt+Q/I/O/H/K/N` son nativos de Brave y no se mapean aquí.
 
 VA-API se activa solo: `install_brave_vaapi` deja un wrapper en
 `~/.local/bin/brave-browser` con `--enable-features=VaapiVideoDecoder` y un
