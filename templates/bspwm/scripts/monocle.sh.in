@@ -1,26 +1,37 @@
 #!/bin/sh
-# monocle.sh — alterna monocle/tiled y ajusta el radio de picom:
-# en monocle no hay esquinas redondeadas (ventana a pantalla completa);
-# al volver a tiled se usa la config normal (radio 10).
+# monocle.sh — alterna monocle/tiled y ajusta bspwm/picom:
+# - monocle: sin borde (también en flotantes), sin esquinas y sin sombra.
+# - tiled: borde 2, picom normal (radio 10, sombra).
+#
+# Uso:
+#   monocle.sh          alterna monocle/tiled
+#   monocle.sh apply    aplica el estado al layout actual sin alternar
 set -u
 
 BASE="$HOME/.config/picom/picom.conf"
 TMP="$HOME/.cache/picom-monocle.conf"
+BORDER_WIDTH=2
 
 command -v bspc >/dev/null 2>&1 || exit 0
-bspc desktop -l next || exit 1
+if [ "${1:-}" != "apply" ]; then
+  bspc desktop -l next || exit 1
+fi
 
 layout=$(bspc query -T -d 2>/dev/null |
   sed -n 's/.*"layout":"\([a-z]*\)".*/\1/p' | head -1)
 
 mkdir -p "$HOME/.cache" 2>/dev/null || true
 if [ "$layout" = "monocle" ]; then
+  bspc config border_width 0 2>/dev/null || true
   if grep -q '^corner-radius' "$BASE" 2>/dev/null; then
-    sed 's/^corner-radius = .*/corner-radius = 0;/' "$BASE" >"$TMP"
+    sed -e 's/^corner-radius = .*/corner-radius = 0;/' \
+        -e 's/^shadow = .*/shadow = false;/' "$BASE" >"$TMP"
   else
-    cp -f "$BASE" "$TMP"
+    sed 's/^shadow = .*/shadow = false;/' "$BASE" >"$TMP" 2>/dev/null ||
+      cp -f "$BASE" "$TMP"
   fi
 else
+  bspc config border_width "$BORDER_WIDTH" 2>/dev/null || true
   cp -f "$BASE" "$TMP" 2>/dev/null || exit 0
 fi
 

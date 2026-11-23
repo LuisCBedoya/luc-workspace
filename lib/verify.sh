@@ -232,6 +232,23 @@ verify_install() {
     fi
   done
 
+  # Monocle: sin borde, sin esquinas y sin sombra.
+  local monocle_sh="$home/.config/bspwm/scripts/monocle.sh"
+  if [[ -f "$monocle_sh" ]]; then
+    if ! grep -q 'border_width 0' "$monocle_sh"; then
+      error "monocle.sh no quita border_width en monocle"
+      failures=$((failures + 1))
+    fi
+    if ! grep -q 'corner-radius = 0' "$monocle_sh"; then
+      error "monocle.sh no desactiva corner-radius en monocle"
+      failures=$((failures + 1))
+    fi
+    if ! grep -q 'shadow = false' "$monocle_sh"; then
+      error "monocle.sh no desactiva shadow en monocle"
+      failures=$((failures + 1))
+    fi
+  fi
+
   # Todos los colores renderizados deben salir de la paleta activa.
   local -a palette_hex=()
   local color_var

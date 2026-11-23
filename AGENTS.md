@@ -358,7 +358,13 @@ El escritorio está terminado. No implementar todavía:
     de picom se veía como un segundo recuadro redondeado (menú
     contextual de Brave). picom usa libconfig:
     comentarios `#`, no `;`. Si se añade color a alguna plantilla nueva
-    de picom, entra al store (regla 20b); hoy no tiene.
+    de picom, entra al store (regla 20b); hoy no tiene. En monocle,
+    `monocle.sh` pone `bspc config border_width 0` y genera
+    `~/.cache/picom-monocle.conf` con `corner-radius = 0` y
+    `shadow = false`; al volver a tiled restaura borde 2, radio 10 y
+    sombra. `monocle.sh apply` reaplica el estado al layout actual sin
+    alternar. Esto es lo que hace que el monocle no muestre bordes ni
+    sombras, incluidos los flotantes.
 
 26. **Gobernador de CPU (ADR-108).** El módulo `governor` va en la A
     justo tras `cpu` en `modules-right` y en la B en `modules-left`
@@ -821,10 +827,10 @@ desktop-doctor --camera
 
 - El código está implementado y los checks estáticos pasan.
 - Renombrado a `luc-workspace` (2026-11-21): repo, sistema, rutas,
-  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.1
+  unidades, sudoers, variables y átomos X11. Versión 1.0.0 → 1.0.2
   (2026-11-22: latest+fallback, Brave/opencode/ueberzugpp, política en
-  `docs/reproducibility.md`). La migración en vivo y la instalación desde
-  cero en VM quedan pendientes.
+  `docs/reproducibility.md`, monocle sin bordes/sombra). La migración en
+  vivo y la instalación desde cero en VM quedan pendientes.
 - Herdr (2026-11-17; actualizado 2026-11-22): `lib/herdr.sh` instala la
   última estable y cae a v0.9.5 con SHA-256; el config se renderiza desde
   `templates/herdr/config.toml.in`; `--no-herdr` lo omite. La instalación

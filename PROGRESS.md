@@ -2794,3 +2794,22 @@ UHD 630; sin servicios ni configuración extra.
 - Validación: `bash -n`, `sh -n`, `--dry-run` rc 0 y pruebas unitarias
   de fallback; no se ejecutó instalación real en VM (decisión del
   usuario). Queda como paso manual.
+
+### Monocle sin bordes ni sombra — 2026-11-22
+
+- Inconsistencia: `docs/usage.md` decía que monocle quedaba «sin esquinas
+  ni sombra», pero `monocle.sh` solo ponía `corner-radius = 0`; la sombra
+  de picom seguía activa y podía parecer un borde.
+- `monocle.sh` ahora, al entrar en monocle:
+  - `bspc config border_width 0` (cubre también ventanas flotantes),
+  - `corner-radius = 0` en `~/.cache/picom-monocle.conf`,
+  - `shadow = false` en esa misma config.
+  Al volver a tiled restaura `border_width 2`, radio 10 y sombra.
+- Nuevo `monocle.sh apply`: reaplica el estado al layout actual sin
+  alternar monocle/tiled.
+- Aplicado en vivo: layout `1` monocle, `bspc config border_width` 0,
+  `shadow = false`, `corner-radius = 0`, picom reiniciado con
+  `picom-monocle.conf`.
+- Pendiente: comprobación visual de Brave y kitty. Si Brave sigue
+  mostrando un borde con la ventana tiled, será decoración propia de
+  Brave (CSD/GTK), no bspwm/picom.

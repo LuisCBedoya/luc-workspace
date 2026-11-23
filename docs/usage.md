@@ -45,7 +45,7 @@ Atajos, variantes de la barra, apps y tema. El
 | `Super+{1-7}` | ir al escritorio N; si no existe, crea el siguiente |
 | `Super+Shift+{1-7}` | mover ventana al N; si no existe, crea el siguiente |
 | `Super+r`, luego `h/j/k/l` | modo resize (Escape o 6 s sale) |
-| `Super+m` | monocle/tiled (en monocle, picom sin esquinas ni sombra) |
+| `Super+m` | monocle/tiled (en monocle: sin bordes, esquinas ni sombra) |
 | `Print` | pantalla completa al portapapeles |
 | `Super+Print` | menú de capturas |
 | `XF86AudioRaise/Lower/Mute` | volumen |
@@ -53,6 +53,11 @@ Atajos, variantes de la barra, apps y tema. El
 | `XF86AudioStop` | detiene todas las instancias (limpieza) |
 | `XF86AudioForward` / `Rewind` | ±10 s en el activo |
 | `XF86MonBrightnessUp/Down` | brillo |
+
+En monocle, `monocle.sh` pone `border_width 0`, `corner-radius = 0` y
+`shadow = false`; al volver a tiled restaura borde 2, radio 10 y sombra.
+`~/.config/bspwm/scripts/monocle.sh apply` reaplica el estado al layout
+actual sin alternar.
 
 Escritorios dinámicos (ADR-112): la sesión arranca con uno solo; `Super+1..7`
 salta al N si ya existe y, si no, crea el siguiente (secuencia densa `1..N`

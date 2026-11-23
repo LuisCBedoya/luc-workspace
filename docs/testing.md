@@ -1087,6 +1087,12 @@ ytsearch50  → 4533 ms
   corner_radius 10; foco indicado por sombra (`!focused`); Super+m con
   monocle.sh (picom sin radios en monocle). Probado el toggle
   monocle/tiled y el radio temporal; sin commit aún.
+- 2026-11-22: monocle sin bordes, esquinas ni sombra. `monocle.sh` pone
+  `bspc config border_width 0`, `corner-radius = 0` y `shadow = false`
+  en `~/.cache/picom-monocle.conf`; al volver a tiled restaura borde 2,
+  radio 10 y sombra. `monocle.sh apply` reaplica sin alternar. Probado
+  en vivo en monocle: `border_width=0`, `shadow=false`,
+  `corner-radius=0` y picom reiniciado con esa config.
 - 2026-11-05: `inactive-dim 0.18` + dunst con sombra
   (`!focused && !(class_g = 'Dunst')`). Pendiente de confirmar en
   pantalla si dunst queda sin atenuar (si no, pasar a opacity-rule).
